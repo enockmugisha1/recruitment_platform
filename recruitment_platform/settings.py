@@ -146,6 +146,7 @@ AUTH_USER_MODEL = 'users.MyUser'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:5174",
     "https://mohamdah-aa-frontend.netlify.app",
 ]
 
