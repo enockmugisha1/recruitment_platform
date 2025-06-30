@@ -63,6 +63,7 @@ class LoginUserView(views.APIView):
                 "email": user.email,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
+                "role": user.role,
             }
 
             if user.check_password(user_password):
