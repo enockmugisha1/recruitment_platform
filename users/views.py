@@ -59,13 +59,18 @@ class LoginUserView(views.APIView):
         # Attempt to authenticate the user
         try:
             user = User.objects.get(email=user_email)
+            user_data = {
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            }
 
             if user.check_password(user_password):
                 # Create JWT token
                 refresh = RefreshToken.for_user(user)
                 access_token = refresh.access_token
                 # Return the tokens
-                return Response({'access': str(access_token),'refresh': str(refresh)})
+                return Response({'user_data':user_data,'access': str(access_token),'refresh': str(refresh)})
             return Response({"error": "Invalid password!"}, status=status.HTTP_400_BAD_REQUEST)
 
         except User.DoesNotExist:
