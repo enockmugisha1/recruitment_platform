@@ -1,0 +1,286 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║           📮 POSTMAN COLLECTION - QUICK REFERENCE CARD 📮               ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+📥 IMPORT COLLECTION
+═══════════════════════════════════════════════════════════════════════════
+
+File: TGA_Recruitment_Platform_Postman_Collection.json
+
+Steps:
+1. Open Postman
+2. Click "Import" button
+3. Select the JSON file
+4. Click "Import"
+
+✅ Done! 40+ requests ready to use
+
+═══════════════════════════════════════════════════════════════════════════
+📋 COLLECTION STRUCTURE
+═══════════════════════════════════════════════════════════════════════════
+
+1. Authentication (6 requests)
+   ✓ Register Job Seeker
+   ✓ Register Recruiter
+   ✓ Login Job Seeker
+   ✓ Login Recruiter
+   ✓ Refresh Token
+   ✓ Logout
+
+2. OTP & Email Verification (4 requests)
+   ✓ Request OTP (Email Verification)
+   ✓ Verify OTP
+   ✓ Request Password Reset OTP
+   ✓ Reset Password with OTP
+
+3. Job Seeker Profile (3 requests)
+   ✓ Get My Profile
+   ✓ Update Profile (JSON)
+   ✓ Upload Profile Picture
+
+4. Recruiter Profile (3 requests)
+   ✓ Get My Profile
+   ✓ Update Profile
+   ✓ Upload Company Logo
+
+5. Jobs (5 requests)
+   ✓ List All Jobs
+   ✓ Get Single Job
+   ✓ Create Job (Recruiter)
+   ✓ Update Job (Recruiter)
+   ✓ Delete Job (Recruiter)
+
+6. Applications (4 requests)
+   ✓ Apply to Job (Job Seeker)
+   ✓ My Applications (Job Seeker)
+   ✓ View Job Applications (Recruiter)
+   ✓ Update Application Status (Recruiter)
+
+7. Testing & Debug (2 requests)
+   ✓ Test Rate Limiting
+   ✓ Health Check
+
+═══════════════════════════════════════════════════════════════════════════
+🚀 QUICK START - 5 MINUTES
+═══════════════════════════════════════════════════════════════════════════
+
+Step 1: Start Server
+   cd /home/enock/recruitment_platform
+   source env/bin/activate
+   python manage.py runserver 0.0.0.0:8000
+
+Step 2: Import Collection in Postman
+   Import → Select JSON file → Import
+
+Step 3: Test Health Check
+   7. Testing & Debug → Health Check → Send
+   ✅ Should return 200 OK
+
+Step 4: Register & Login
+   1. Authentication → Register Job Seeker → Send
+   1. Authentication → Login Job Seeker → Send
+   ✅ Token auto-saved!
+
+Step 5: Test Any Protected Endpoint
+   3. Job Seeker Profile → Get My Profile → Send
+   ✅ Uses token automatically!
+
+═══════════════════════════════════════════════════════════════════════════
+🎯 AUTO-SAVED VARIABLES
+═══════════════════════════════════════════════════════════════════════════
+
+These are saved automatically:
+
+✓ access_token       → After login (any role)
+✓ refresh_token      → After login (any role)
+✓ job_seeker_token   → After Job Seeker login
+✓ recruiter_token    → After Recruiter login
+✓ otp_code           → After OTP request (debug mode)
+✓ job_id             → After creating a job
+✓ job_seeker_email   → After Job Seeker registration
+✓ recruiter_email    → After Recruiter registration
+
+No manual copy-paste needed! 🎉
+
+═══════════════════════════════════════════════════════════════════════════
+🧪 TESTING SCENARIOS
+═══════════════════════════════════════════════════════════════════════════
+
+Job Seeker Journey:
+  1. Register Job Seeker
+  2. Login Job Seeker (token saved)
+  3. Request OTP → Verify OTP
+  4. Update Profile
+  5. View All Jobs
+  6. Apply to Job
+  7. View My Applications
+
+Recruiter Journey:
+  1. Register Recruiter
+  2. Login Recruiter (token saved)
+  3. Update Profile
+  4. Create Job (ID saved)
+  5. View Applications
+  6. Update Application Status
+
+Security Testing:
+  1. Test rate limiting (5 wrong passwords)
+  2. Test account locking
+  3. Test password reset with OTP
+
+═══════════════════════════════════════════════════════════════════════════
+📊 HTTP STATUS CODES
+═══════════════════════════════════════════════════════════════════════════
+
+✅ 200 OK              → Success (GET, PATCH)
+✅ 201 Created         → Success (POST - created)
+✅ 204 No Content      → Success (DELETE)
+⚠️  400 Bad Request    → Invalid data
+⚠️  401 Unauthorized   → Missing/invalid token
+⚠️  403 Forbidden      → No permission
+⚠️  404 Not Found      → Resource not found
+⚠️  423 Locked         → Account locked
+⚠️  429 Too Many       → Rate limit exceeded
+❌ 500 Server Error    → Internal error
+
+═══════════════════════════════════════════════════════════════════════════
+🔧 COMMON ISSUES & FIXES
+═══════════════════════════════════════════════════════════════════════════
+
+Issue: 401 Unauthorized
+Fix: Login again, token expired (30 min)
+
+Issue: 403 Forbidden
+Fix: Wrong role (Job Seeker can't create jobs)
+
+Issue: 423 Locked
+Fix: Too many failed logins, wait 30 minutes
+
+Issue: File upload fails
+Fix: Use form-data, not JSON
+
+Issue: Token not saved
+Fix: Check environment is selected (top right)
+
+═══════════════════════════════════════════════════════════════════════════
+💡 PRO TIPS
+═══════════════════════════════════════════════════════════════════════════
+
+1. Test requests in order (top to bottom)
+2. Read description tab for each request
+3. Check Tests tab to see auto-save scripts
+4. Use Collection Runner for batch testing
+5. Enable query params manually when needed
+6. Save successful responses as examples
+7. Use Swagger UI too: http://localhost:8000/
+8. Check logs: tail -f logs/*.log
+9. Debug mode OTP: returns code in response
+10. Rate limits: Be aware of throttling
+
+═══════════════════════════════════════════════════════════════════════════
+📁 FILE UPLOADS
+═══════════════════════════════════════════════════════════════════════════
+
+What to upload:
+
+Profile Picture:
+   → JPEG, PNG, GIF
+   → Max 5MB
+   → Use: Job Seeker Profile → Upload Profile Picture
+
+Company Logo:
+   → JPEG, PNG
+   → Max 5MB
+   → Use: Recruiter Profile → Upload Company Logo
+
+Resume:
+   → PDF, DOC, DOCX
+   → Max 5MB
+   → Use: Applications → Apply to Job
+
+Cover Letter:
+   → PDF, DOC, DOCX (Optional)
+   → Max 5MB
+   → Use: Applications → Apply to Job
+
+How to upload in Postman:
+   1. Body tab → form-data
+   2. Key: field name (e.g., "resume")
+   3. Type: File (select from dropdown)
+   4. Value: Select Files button → Choose file
+
+═══════════════════════════════════════════════════════════════════════════
+🔐 AUTHENTICATION
+═══════════════════════════════════════════════════════════════════════════
+
+All protected endpoints automatically use:
+
+   Authorization: Bearer {{access_token}}
+
+You don't need to add this manually!
+
+Token Lifetime:
+   ✓ Access Token: 30 minutes
+   ✓ Refresh Token: 1 day
+
+When expired:
+   Use: 1. Authentication → Refresh Token
+
+═══════════════════════════════════════════════════════════════════════════
+📞 SUPPORT
+═══════════════════════════════════════════════════════════════════════════
+
+Documentation:
+   ✓ POSTMAN_TESTING_GUIDE.md  → Full testing guide
+   ✓ API_ENDPOINTS.md          → All endpoints reference
+   ✓ HOW_TO_RUN.md             → Setup instructions
+   ✓ IMPROVEMENTS_SUMMARY.md    → Feature details
+
+URLs:
+   ✓ Swagger: http://localhost:8000/
+   ✓ ReDoc: http://localhost:8000/redoc/
+   ✓ Admin: http://localhost:8000/admin/
+
+Logs:
+   ✓ Application: logs/recruitment.log
+   ✓ Security: logs/security.log
+
+═══════════════════════════════════════════════════════════════════════════
+✅ CHECKLIST
+═══════════════════════════════════════════════════════════════════════════
+
+Before testing:
+   [ ] Server is running
+   [ ] Collection imported
+   [ ] Environment selected
+   [ ] Health check passed
+
+Test Authentication:
+   [ ] Register users
+   [ ] Login successfully
+   [ ] Token auto-saved
+   [ ] Can access protected endpoints
+
+Test OTP:
+   [ ] Request OTP (debug mode)
+   [ ] Verify OTP
+   [ ] Test password reset
+
+Test Profiles:
+   [ ] Update profiles
+   [ ] Upload files
+
+Test Jobs & Applications:
+   [ ] Create job
+   [ ] Apply to job
+   [ ] View applications
+
+═══════════════════════════════════════════════════════════════════════════
+
+Ready to test? Import the collection and start! 🚀
+
+File: TGA_Recruitment_Platform_Postman_Collection.json
+
+═══════════════════════════════════════════════════════════════════════════

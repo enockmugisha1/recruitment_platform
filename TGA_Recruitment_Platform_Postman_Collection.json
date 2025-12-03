@@ -1,0 +1,1200 @@
+{
+	"info": {
+		"_postman_id": "recruitment-platform-2025",
+		"name": "TGA Recruitment Platform - Complete API Collection",
+		"description": "Complete API testing collection for TGA Recruitment Platform v2.0\n\nFeatures:\n- User Authentication (Register, Login, OTP)\n- Profile Management (Job Seekers & Recruiters)\n- Job Postings & Applications\n- Password Reset with OTP\n- Email Verification\n\nBase URL: http://localhost:8000\n\nDocumentation: See IMPROVEMENTS_SUMMARY.md and API_ENDPOINTS.md",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "1.1 Register Job Seeker",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.environment.set('job_seeker_email', pm.request.body.raw ? JSON.parse(pm.request.body.raw).email : '');",
+									"    console.log('Job Seeker registered successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"password_confirm\": \"SecurePass123!\",\n  \"role\": \"job_seeker\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register",
+								""
+							]
+						},
+						"description": "Register a new Job Seeker account.\n\nRequired fields:\n- email: Valid email address\n- password: Min 8 chars, must include uppercase, lowercase, digit\n- password_confirm: Must match password\n- role: 'job_seeker'\n- first_name: User's first name\n- last_name: User's last name"
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 Register Recruiter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.environment.set('recruiter_email', pm.request.body.raw ? JSON.parse(pm.request.body.raw).email : '');",
+									"    console.log('Recruiter registered successfully');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"recruiter@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"password_confirm\": \"SecurePass123!\",\n  \"role\": \"recruiter\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Smith\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register",
+								""
+							]
+						},
+						"description": "Register a new Recruiter account.\n\nRequired fields:\n- email: Valid email address\n- password: Min 8 chars, must include uppercase, lowercase, digit\n- password_confirm: Must match password\n- role: 'recruiter'\n- first_name: User's first name\n- last_name: User's last name"
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 Login Job Seeker",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('access_token', jsonData.access);",
+									"    pm.environment.set('refresh_token', jsonData.refresh);",
+									"    pm.environment.set('job_seeker_token', jsonData.access);",
+									"    console.log('Job Seeker logged in. Access token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login",
+								""
+							]
+						},
+						"description": "Login as Job Seeker and get JWT tokens.\n\nReturns:\n- access: Access token (expires in 30 minutes)\n- refresh: Refresh token (expires in 1 day)"
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 Login Recruiter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('access_token', jsonData.access);",
+									"    pm.environment.set('refresh_token', jsonData.refresh);",
+									"    pm.environment.set('recruiter_token', jsonData.access);",
+									"    console.log('Recruiter logged in. Access token saved.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"recruiter@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login",
+								""
+							]
+						},
+						"description": "Login as Recruiter and get JWT tokens.\n\nReturns:\n- access: Access token (expires in 30 minutes)\n- refresh: Refresh token (expires in 1 day)"
+					},
+					"response": []
+				},
+				{
+					"name": "1.5 Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('access_token', jsonData.access);",
+									"    console.log('Access token refreshed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/token/refresh/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"refresh",
+								""
+							]
+						},
+						"description": "Refresh access token using refresh token.\n\nUse this when access token expires (30 minutes)."
+					},
+					"response": []
+				},
+				{
+					"name": "1.6 Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/logout/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout",
+								""
+							]
+						},
+						"description": "Logout and blacklist refresh token.\n\nRequires:\n- Authorization header with Bearer token\n- Refresh token in body"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user registration, login, token refresh, and logout."
+		},
+		{
+			"name": "2. OTP & Email Verification",
+			"item": [
+				{
+					"name": "2.1 Request OTP (Email Verification)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.otp_code) {",
+									"        pm.environment.set('otp_code', jsonData.otp_code);",
+									"        console.log('OTP Code (debug mode): ' + jsonData.otp_code);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"purpose\": \"email_verification\",\n  \"debug\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/otp/request/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"otp",
+								"request",
+								""
+							]
+						},
+						"description": "Request OTP code for email verification.\n\nPurposes:\n- email_verification\n- password_reset\n- two_factor_auth\n\nDebug mode (debug: true) returns OTP in response for testing."
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"otp_code\": \"{{otp_code}}\",\n  \"purpose\": \"email_verification\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/otp/verify/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"otp",
+								"verify",
+								""
+							]
+						},
+						"description": "Verify OTP code.\n\nUse the OTP code received from request OTP endpoint or email."
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 Request Password Reset OTP",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.otp_code) {",
+									"        pm.environment.set('reset_otp_code', jsonData.otp_code);",
+									"        console.log('Reset OTP Code (debug mode): ' + jsonData.otp_code);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"purpose\": \"password_reset\",\n  \"debug\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/otp/request/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"otp",
+								"request",
+								""
+							]
+						},
+						"description": "Request OTP code for password reset."
+					},
+					"response": []
+				},
+				{
+					"name": "2.4 Reset Password with OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jobseeker@example.com\",\n  \"otp_code\": \"{{reset_otp_code}}\",\n  \"new_password\": \"NewSecurePass123!\",\n  \"password_confirm\": \"NewSecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/password/reset/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"password",
+								"reset",
+								""
+							]
+						},
+						"description": "Reset password using OTP code.\n\nNew password must meet requirements:\n- Min 8 characters\n- Include uppercase letter\n- Include lowercase letter\n- Include digit"
+					},
+					"response": []
+				}
+			],
+			"description": "OTP-based email verification and password reset endpoints."
+		},
+		{
+			"name": "3. Job Seeker Profile",
+			"item": [
+				{
+					"name": "3.1 Get My Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{job_seeker_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/profile/job-seeker/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"job-seeker",
+								""
+							]
+						},
+						"description": "Get job seeker profile.\n\nRequires: Job Seeker authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 Update Profile (JSON)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{job_seeker_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"location\": \"New York, USA\",\n  \"nationality\": \"American\",\n  \"bio\": \"Experienced software developer with 5+ years in Python and Django development.\",\n  \"education\": \"Bachelor's in Computer Science\",\n  \"institution_or_company\": \"MIT / Google\",\n  \"years_of_experience\": 5,\n  \"phone\": \"+1234567890\",\n  \"gender\": \"M\",\n  \"website\": \"https://janedoe.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/profile/job-seeker/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"job-seeker",
+								""
+							]
+						},
+						"description": "Update job seeker profile (JSON format).\n\nGender choices: 'M' or 'F'"
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 Upload Profile Picture",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{job_seeker_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "picture",
+									"type": "file",
+									"src": [],
+									"description": "Upload profile picture (JPEG, PNG, GIF)"
+								},
+								{
+									"key": "bio",
+									"value": "Updated bio with profile picture",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/profile/job-seeker/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"job-seeker",
+								""
+							]
+						},
+						"description": "Upload profile picture.\n\nUse multipart/form-data for file uploads."
+					},
+					"response": []
+				}
+			],
+			"description": "Job Seeker profile management endpoints."
+		},
+		{
+			"name": "4. Recruiter Profile",
+			"item": [
+				{
+					"name": "4.1 Get My Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/profile/recruiter/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"recruiter",
+								""
+							]
+						},
+						"description": "Get recruiter profile.\n\nRequires: Recruiter authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "4.2 Update Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"company_name\": \"TechCorp Solutions\",\n  \"company_website\": \"https://techcorp.com\",\n  \"company_description\": \"Leading technology company specializing in web and mobile applications.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/profile/recruiter/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"recruiter",
+								""
+							]
+						},
+						"description": "Update recruiter profile."
+					},
+					"response": []
+				},
+				{
+					"name": "4.3 Upload Company Logo",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "company_logo",
+									"type": "file",
+									"src": [],
+									"description": "Upload company logo (JPEG, PNG)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/profile/recruiter/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"profile",
+								"recruiter",
+								""
+							]
+						},
+						"description": "Upload company logo.\n\nUse multipart/form-data for file uploads."
+					},
+					"response": []
+				}
+			],
+			"description": "Recruiter profile management endpoints."
+		},
+		{
+			"name": "5. Jobs",
+			"item": [
+				{
+					"name": "5.1 List All Jobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/access/jobs/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								""
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "python",
+									"description": "Search in title, description, location",
+									"disabled": true
+								},
+								{
+									"key": "job_type",
+									"value": "full_time",
+									"description": "Filter by job type",
+									"disabled": true
+								},
+								{
+									"key": "location",
+									"value": "Remote",
+									"description": "Filter by location",
+									"disabled": true
+								},
+								{
+									"key": "ordering",
+									"value": "-created_at",
+									"description": "Sort by field (prefix with - for descending)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all available jobs.\n\nQuery parameters:\n- search: Search keyword\n- job_type: full_time, part_time, contract, internship\n- location: Job location\n- ordering: Sort field"
+					},
+					"response": []
+				},
+				{
+					"name": "5.2 Get Single Job",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/access/jobs/:id/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								":id",
+								""
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Job ID"
+								}
+							]
+						},
+						"description": "Get details of a specific job."
+					},
+					"response": []
+				},
+				{
+					"name": "5.3 Create Job (Recruiter)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('job_id', jsonData.id);",
+									"    console.log('Job created with ID: ' + jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Senior Python Developer\",\n  \"description\": \"We are looking for an experienced Python developer to join our team. The ideal candidate will have strong experience with Django, REST APIs, and database design.\",\n  \"requirements\": \"5+ years of Python experience, 3+ years with Django, Experience with PostgreSQL, RESTful API design, Git version control, Excellent communication skills\",\n  \"location\": \"Remote\",\n  \"job_type\": \"full_time\",\n  \"salary_range\": \"$80,000 - $120,000\",\n  \"deadline\": \"2025-12-31\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/access/jobs/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								""
+							]
+						},
+						"description": "Create a new job posting.\n\nRequires: Recruiter authentication\n\nJob types:\n- full_time\n- part_time\n- contract\n- internship\n\nDeadline format: YYYY-MM-DD"
+					},
+					"response": []
+				},
+				{
+					"name": "5.4 Update Job (Recruiter)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"salary_range\": \"$90,000 - $130,000\",\n  \"description\": \"Updated job description with better benefits package.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/access/jobs/:id/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								":id",
+								""
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{job_id}}",
+									"description": "Job ID"
+								}
+							]
+						},
+						"description": "Update a job posting.\n\nRequires: Recruiter authentication (must be job owner)"
+					},
+					"response": []
+				},
+				{
+					"name": "5.5 Delete Job (Recruiter)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/access/jobs/:id/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								":id",
+								""
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{job_id}}",
+									"description": "Job ID"
+								}
+							]
+						},
+						"description": "Delete a job posting.\n\nRequires: Recruiter authentication (must be job owner)"
+					},
+					"response": []
+				}
+			],
+			"description": "Job posting management endpoints."
+		},
+		{
+			"name": "6. Applications",
+			"item": [
+				{
+					"name": "6.1 Apply to Job (Job Seeker)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{job_seeker_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "resume",
+									"type": "file",
+									"src": [],
+									"description": "Resume file (PDF, DOC, DOCX) - Required"
+								},
+								{
+									"key": "cover_letter",
+									"type": "file",
+									"src": [],
+									"description": "Cover letter file (PDF, DOC, DOCX) - Optional",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/access/my-applications/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"my-applications",
+								""
+							]
+						},
+						"description": "Apply to a job.\n\nRequires: Job Seeker authentication\n\nFiles:\n- resume: Required\n- cover_letter: Optional\n\nNote: Cannot apply to same job twice"
+					},
+					"response": []
+				},
+				{
+					"name": "6.2 My Applications (Job Seeker)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{job_seeker_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/access/my-applications/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"my-applications",
+								""
+							]
+						},
+						"description": "Get all my job applications.\n\nRequires: Job Seeker authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "6.3 View Job Applications (Recruiter)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/access/jobs/:job_id/applications/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"jobs",
+								":job_id",
+								"applications",
+								""
+							],
+							"variable": [
+								{
+									"key": "job_id",
+									"value": "{{job_id}}",
+									"description": "Job ID"
+								}
+							]
+						},
+						"description": "View all applications for a specific job.\n\nRequires: Recruiter authentication (must be job owner)"
+					},
+					"response": []
+				},
+				{
+					"name": "6.4 Update Application Status (Recruiter)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"under_review\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/access/my-applications/:id/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"access",
+								"my-applications",
+								":id",
+								""
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Application ID"
+								}
+							]
+						},
+						"description": "Update application status.\n\nRequires: Recruiter authentication (must be job owner)\n\nStatus options:\n- submitted\n- under_review\n- shortlisted\n- rejected\n- accepted"
+					},
+					"response": []
+				}
+			],
+			"description": "Job application management endpoints."
+		},
+		{
+			"name": "7. Testing & Debug",
+			"item": [
+				{
+					"name": "7.1 Test Rate Limiting (Login)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"WrongPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login",
+								""
+							]
+						},
+						"description": "Test rate limiting by trying wrong password multiple times.\n\nTry this 5 times quickly - account will be locked for 30 minutes.\n\nRate limit: 10 requests per hour"
+					},
+					"response": []
+				},
+				{
+					"name": "7.2 Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Check if API is running.\n\nReturns Swagger UI page."
+					},
+					"response": []
+				}
+			],
+			"description": "Testing and debugging endpoints."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_seeker_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "recruiter_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_seeker_email",
+			"value": "jobseeker@example.com",
+			"type": "string"
+		},
+		{
+			"key": "recruiter_email",
+			"value": "recruiter@example.com",
+			"type": "string"
+		},
+		{
+			"key": "otp_code",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "reset_otp_code",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

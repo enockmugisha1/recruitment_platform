@@ -21,6 +21,16 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['recruiter']),
+            models.Index(fields=['job_type']),
+            models.Index(fields=['location']),
+            models.Index(fields=['deadline']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['title', 'location']),
+        ]
+
     def __str__(self):
         return self.title
 
@@ -42,7 +52,14 @@ class JobSeekerApplication(models.Model):
     applied_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('job', 'applicant')  # Prevent duplicate applications
+        unique_together = ('job', 'applicant')
+        indexes = [
+            models.Index(fields=['job']),
+            models.Index(fields=['applicant']),
+            models.Index(fields=['status']),
+            models.Index(fields=['-applied_at']),
+            models.Index(fields=['job', 'status']),
+        ]
 
     def __str__(self):
         return f"{self.applicant.user.first_name} -> {self.job.title}"

@@ -1,5 +1,5 @@
 asgiref==3.8.1
-Django==5.2.1
+Django==5.1.0
 django-cors-headers==4.7.0
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
@@ -14,3 +14,23 @@ sqlparse==0.5.3
 tzdata==2025.2
 uritemplate==4.1.1
 whitenoise==6.9.0
+
+# PostgreSQL support
+psycopg2-binary==2.9.9
+
+# Redis & Celery for background tasks
+redis==5.0.1
+celery==5.3.4
+django-celery-beat==2.7.0
+django-redis==5.4.0
+
+# Enhanced security & utilities
+python-decouple==3.8
+python-dotenv==1.0.0
+
+# For email sending (optional)
+# sendgrid==6.11.0
+
+# Monitoring & Error tracking (optional)
+# sentry-sdk==1.39.2
+

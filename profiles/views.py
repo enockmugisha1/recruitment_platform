@@ -16,6 +16,10 @@ class JobSeekerProfileViewSet(viewsets.ModelViewSet):
     queryset = JobSeekerProfile.objects.all()
 
     def get_queryset(self):
+        # Handle swagger schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return JobSeekerProfile.objects.none()
+        
         job_seeker = self.request.user
         user = JobSeekerProfile.objects.filter(user=job_seeker)
         return user
@@ -91,6 +95,10 @@ class RecruiterProfileViewSet(viewsets.ModelViewSet):
     queryset = RecruiterProfile.objects.all()
 
     def get_queryset(self):
+        # Handle swagger schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return RecruiterProfile.objects.none()
+        
         recruiter = self.request.user
         user = RecruiterProfile.objects.filter(user=recruiter)
         return user

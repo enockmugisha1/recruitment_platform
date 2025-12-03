@@ -70,6 +70,10 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
     queryset = JobSeekerApplication.objects.all()
 
     def get_queryset(self):
+        # Handle swagger schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return JobSeekerApplication.objects.none()
+        
         try:
             job_seeker_profile = self.request.user.job_seeker_profile
             applicant = JobSeekerApplication.objects.filter(applicant=job_seeker_profile)

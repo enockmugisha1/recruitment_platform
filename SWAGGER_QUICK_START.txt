@@ -1,0 +1,370 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║              🔷 SWAGGER QUICK START - VISUAL GUIDE 🔷                   ║
+║                      (Your First Time Testing!)                          ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+🌐 STEP 1: OPEN SWAGGER
+═══════════════════════════════════════════════════════════════════════════
+
+1. Start server:
+   cd /home/enock/recruitment_platform
+   source env/bin/activate
+   python manage.py runserver 0.0.0.0:8000
+
+2. Open browser: http://localhost:8000/
+
+3. You'll see a page with colorful sections! ✨
+
+
+📋 WHAT YOU'LL SEE
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ TGA Recruitment Platform API                                │
+│                                                              │
+│ 🟦 auth                    [Click to expand]                │
+│    POST /auth/register/                                      │
+│    POST /auth/login/                                         │
+│    POST /auth/logout/                                        │
+│                                                              │
+│ 🟦 profile                 [Click to expand]                │
+│    GET  /profile/job-seeker/                                 │
+│    PATCH /profile/job-seeker/                                │
+│                                                              │
+│ 🟦 access                  [Click to expand]                │
+│    GET  /access/jobs/                                        │
+│    POST /access/jobs/                                        │
+└─────────────────────────────────────────────────────────────┘
+
+
+🚀 YOUR FIRST TEST - REGISTER USER (5 STEPS!)
+═══════════════════════════════════════════════════════════════════════════
+
+Step 1: Find & Click
+   ┌──────────────────────────────────────────┐
+   │ 🟦 auth                                  │
+   │    ▼ Click here to expand                │
+   └──────────────────────────────────────────┘
+
+Step 2: Click Register Endpoint
+   ┌──────────────────────────────────────────┐
+   │ POST /auth/register/  [Green button]     │
+   │    ▼ Click to open                       │
+   └──────────────────────────────────────────┘
+
+Step 3: Click "Try it out"
+   ┌──────────────────────────────────────────┐
+   │ [Try it out]  ← Click this button        │
+   └──────────────────────────────────────────┘
+
+Step 4: Edit the JSON
+   ┌──────────────────────────────────────────┐
+   │ Request body                             │
+   │ {                                        │
+   │   "email": "john@example.com",           │
+   │   "password": "SecurePass123!",          │
+   │   "password_confirm": "SecurePass123!",  │
+   │   "role": "job_seeker",                  │
+   │   "first_name": "John",                  │
+   │   "last_name": "Doe"                     │
+   │ }                                        │
+   └──────────────────────────────────────────┘
+
+Step 5: Click Execute
+   ┌──────────────────────────────────────────┐
+   │ [Execute]  ← Click this big blue button  │
+   └──────────────────────────────────────────┘
+
+Result:
+   ┌──────────────────────────────────────────┐
+   │ Response: 201 Created ✅                 │
+   │ User created successfully!               │
+   └──────────────────────────────────────────┘
+
+
+🔑 LOGIN & GET YOUR TOKEN (IMPORTANT!)
+═══════════════════════════════════════════════════════════════════════════
+
+Step 1: Find Login
+   🟦 auth → POST /auth/login/ → Click
+
+Step 2: Try it out
+   Click "Try it out" button
+
+Step 3: Enter credentials
+   {
+     "email": "john@example.com",
+     "password": "SecurePass123!"
+   }
+
+Step 4: Execute
+   Click [Execute]
+
+Step 5: COPY THE TOKEN!
+   ┌──────────────────────────────────────────────────────┐
+   │ Response:                                            │
+   │ {                                                    │
+   │   "access": "eyJ0eXAiOiJKV1Qi..."  ← COPY THIS!     │
+   │   "refresh": "eyJ0eXAiOiJKV1Qi..."                  │
+   │ }                                                    │
+   └──────────────────────────────────────────────────────┘
+
+   📌 Select the long text in "access" and copy it!
+
+
+🔐 AUTHORIZE (USE YOUR TOKEN)
+═══════════════════════════════════════════════════════════════════════════
+
+Step 1: Find Authorize Button
+   ┌──────────────────────────────────────────┐
+   │ Top right corner:                        │
+   │ [🔓 Authorize]  ← Click this!            │
+   └──────────────────────────────────────────┘
+
+Step 2: Popup Opens
+   ┌──────────────────────────────────────────┐
+   │ Available authorizations                 │
+   │                                          │
+   │ tokenAuth (http, Bearer)                 │
+   │ Value: [________________]                │
+   │                                          │
+   │ [Authorize] [Close]                      │
+   └──────────────────────────────────────────┘
+
+Step 3: Enter Token
+   Type: Bearer (with space)
+   Paste your token
+   
+   Example:
+   Bearer eyJ0eXAiOiJKV1QiLCJhbGci...
+
+Step 4: Authorize
+   Click [Authorize] button
+   Then click [Close]
+
+Step 5: Check Lock Icon
+   🔒 If you see closed lock = You're authorized! ✅
+
+
+👤 TEST PROTECTED ENDPOINT
+═══════════════════════════════════════════════════════════════════════════
+
+Now try accessing your profile:
+
+1. Go to 🟦 profile section
+2. Click GET /profile/job-seeker/
+3. Click "Try it out"
+4. Click [Execute]
+5. ✅ See your profile data!
+
+(This only works because you authorized!)
+
+
+📧 TEST OTP (EMAIL VERIFICATION)
+═══════════════════════════════════════════════════════════════════════════
+
+Request OTP:
+1. 🟦 auth → POST /auth/otp/request/
+2. Try it out
+3. Enter:
+   {
+     "email": "john@example.com",
+     "purpose": "email_verification",
+     "debug": true
+   }
+4. Execute
+5. Copy the OTP code from response
+
+Verify OTP:
+1. 🟦 auth → POST /auth/otp/verify/
+2. Try it out
+3. Enter:
+   {
+     "email": "john@example.com",
+     "otp_code": "YOUR_CODE_HERE",
+     "purpose": "email_verification"
+   }
+4. Execute
+5. ✅ Email verified!
+
+
+📊 UNDERSTANDING COLORS
+═══════════════════════════════════════════════════════════════════════════
+
+HTTP Methods (Buttons):
+
+🟦 GET (Blue)        → Retrieve data (view)
+🟩 POST (Green)      → Create new data
+🟧 PATCH (Orange)    → Update data
+🟥 DELETE (Red)      → Delete data
+
+
+Response Codes:
+
+✅ 200 OK            → Success!
+✅ 201 Created       → Created successfully!
+⚠️  400 Bad Request  → Fix your data
+⚠️  401 Unauthorized → Need to login/authorize
+⚠️  403 Forbidden    → Wrong role/permission
+❌ 500 Server Error  → Something wrong on server
+
+
+🎯 COMPLETE TEST FLOW (STEP BY STEP)
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Register User                                            │
+│    🟦 auth → POST /auth/register/                           │
+│    ✓ User created                                           │
+├─────────────────────────────────────────────────────────────┤
+│ 2. Login                                                    │
+│    🟦 auth → POST /auth/login/                              │
+│    ✓ Copy access token                                     │
+├─────────────────────────────────────────────────────────────┤
+│ 3. Authorize                                                │
+│    🔓 Authorize → Enter "Bearer YOUR_TOKEN"                 │
+│    ✓ Now you can access protected endpoints                │
+├─────────────────────────────────────────────────────────────┤
+│ 4. View Profile                                             │
+│    🟦 profile → GET /profile/job-seeker/                    │
+│    ✓ See your profile                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 5. Update Profile                                           │
+│    🟦 profile → PATCH /profile/job-seeker/                  │
+│    ✓ Profile updated                                       │
+├─────────────────────────────────────────────────────────────┤
+│ 6. View Jobs                                                │
+│    🟦 access → GET /access/jobs/                            │
+│    ✓ See all available jobs                                │
+└─────────────────────────────────────────────────────────────┘
+
+
+📁 FILE UPLOADS (PICTURES, RESUMES)
+═══════════════════════════════════════════════════════════════════════════
+
+When you see a file field:
+
+┌─────────────────────────────────────────────┐
+│ resume                                      │
+│ [Choose File] No file chosen                │
+│                                             │
+│ ← Click "Choose File" button               │
+│    Select file from your computer           │
+│    Don't type filename!                     │
+└─────────────────────────────────────────────┘
+
+
+🐛 COMMON MISTAKES (AVOID THESE!)
+═══════════════════════════════════════════════════════════════════════════
+
+❌ Wrong: Just pasting token without "Bearer "
+   eyJ0eXAiOiJKV1Qi...
+
+✅ Correct: Include "Bearer " with space
+   Bearer eyJ0eXAiOiJKV1Qi...
+
+❌ Wrong: Not clicking "Try it out" first
+   (Fields won't be editable)
+
+✅ Correct: Always click "Try it out" before editing
+
+❌ Wrong: Using expired token
+   (Tokens expire in 30 minutes)
+
+✅ Correct: Login again to get new token
+
+❌ Wrong: Job Seeker trying to create job
+   (Wrong role)
+
+✅ Correct: Login as Recruiter to create jobs
+
+
+💡 PRO TIPS
+═══════════════════════════════════════════════════════════════════════════
+
+1. Keep your token saved in a notepad temporarily
+
+2. If something doesn't work:
+   - Check response code and message
+   - Read the error description
+   - Common fix: Re-authorize
+
+3. Test endpoints from top to bottom
+   (Register → Login → Profile → Jobs → Applications)
+
+4. Each endpoint has:
+   - Description (what it does)
+   - Parameters (what you need to send)
+   - Responses (what you get back)
+
+5. Use Ctrl+F to search for endpoints
+   Example: Search "login" to find login endpoint quickly
+
+6. Scroll down after clicking Execute
+   Response appears below the Execute button
+
+
+🎓 PRACTICE EXERCISE
+═══════════════════════════════════════════════════════════════════════════
+
+Try this in order:
+
+[ ] 1. Register Job Seeker
+[ ] 2. Login Job Seeker (copy token)
+[ ] 3. Authorize with token
+[ ] 4. Request OTP (debug mode)
+[ ] 5. Verify OTP
+[ ] 6. View your profile
+[ ] 7. Update your profile
+[ ] 8. View all jobs
+[ ] 9. Register Recruiter
+[ ] 10. Login Recruiter (copy new token)
+[ ] 11. Authorize with recruiter token
+[ ] 12. Create a job
+[ ] 13. Login as Job Seeker again
+[ ] 14. Apply to the job
+
+If you complete this, you're a Swagger pro! 🏆
+
+
+🆘 HELP & TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════
+
+Problem: Can't find an endpoint
+Solution: Use search bar at top of page
+
+Problem: 401 Unauthorized error
+Solution: Click 🔓 Authorize and enter your token
+
+Problem: Token not working
+Solution: Make sure you added "Bearer " before token
+
+Problem: 403 Forbidden
+Solution: Wrong role - login with correct account
+
+Problem: Can't edit fields
+Solution: Click "Try it out" button first
+
+Problem: Swagger page not loading
+Solution: Make sure server is running:
+         python manage.py runserver 0.0.0.0:8000
+
+
+📚 MORE HELP
+═══════════════════════════════════════════════════════════════════════════
+
+Read these files:
+✓ SWAGGER_TESTING_GUIDE.md  → Full detailed guide
+✓ API_ENDPOINTS.md          → All endpoints reference
+✓ HOW_TO_RUN.md             → How to start server
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎉 You're Ready! Open Swagger and start testing! 🎉
+
+URL: http://localhost:8000/
+
+═══════════════════════════════════════════════════════════════════════════
