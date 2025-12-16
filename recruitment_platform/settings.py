@@ -250,7 +250,9 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Cache Configuration (Redis)
 redis_url = os.environ.get('REDIS_URL', '').strip()
-if os.environ.get('USE_REDIS_CACHE', 'False') == 'True' and redis_url:
+use_redis = os.environ.get('USE_REDIS_CACHE', 'False').lower() in ('true', '1', 'yes')
+
+if use_redis and redis_url:
     try:
         CACHES = {
             'default': {
@@ -268,9 +270,10 @@ if os.environ.get('USE_REDIS_CACHE', 'False') == 'True' and redis_url:
             }
         }
 else:
+    # Use dummy cache for production when Redis is not available to avoid errors
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache' if not DEBUG else 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'unique-snowflake',
         }
     }
