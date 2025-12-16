@@ -191,6 +191,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "https://mohamdah-aa-frontend.netlify.app",
+    # Add your deployed frontend URL here after deployment:
+    # "https://your-site-name.netlify.app",
+    # "https://recruitment-frontend.onrender.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
