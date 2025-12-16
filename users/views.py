@@ -67,13 +67,24 @@ class RegisterUserView(views.APIView):
                 # TODO: Send OTP via email
                 # send_otp_email(user.email, otp_code)
                 
+                # Log OTP to console for development/testing
+                from django.conf import settings
+                if settings.DEBUG:
+                    logger.info(f"🔐 REGISTRATION OTP for {user.email}: {otp_code}")
+                    print(f"\n{'='*60}")
+                    print(f"🔐 REGISTRATION OTP FOR: {user.email}")
+                    print(f"🔢 CODE: {otp_code}")
+                    print(f"⏰ EXPIRES: 15 minutes from now")
+                    print(f"{'='*60}\n")
+                
                 log_security_event("USER_REGISTRATION", user.email, "New user registered")
                 
                 return Response({
                     "message": "User registered successfully. Please verify your email.",
                     "email": user.email,
                     # In production, don't send OTP in response
-                    "otp_code": otp_code if request.data.get('debug') else None
+                    # In development (DEBUG=True), always include OTP for testing
+                    "otp_code": otp_code if (request.data.get('debug') or settings.DEBUG) else None
                 }, status=status.HTTP_201_CREATED)
             
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -347,12 +358,24 @@ class OTPRequestView(views.APIView):
             # TODO: Send OTP via email
             # send_otp_email(email, otp_code, purpose)
             
+            # Log OTP to console for development/testing
+            from django.conf import settings
+            if settings.DEBUG:
+                logger.info(f"🔐 OTP CODE for {email} ({purpose}): {otp_code}")
+                print(f"\n{'='*60}")
+                print(f"🔐 OTP CODE FOR: {email}")
+                print(f"📧 PURPOSE: {purpose}")
+                print(f"🔢 CODE: {otp_code}")
+                print(f"⏰ EXPIRES: 15 minutes from now")
+                print(f"{'='*60}\n")
+            
             log_security_event("OTP_REQUEST", email, f"OTP requested for {purpose}")
             
             return Response({
                 "message": "OTP sent successfully. Please check your email.",
                 # In production, don't include OTP in response
-                "otp_code": otp_code if request.data.get('debug') else None
+                # In development (DEBUG=True), always include OTP for testing
+                "otp_code": otp_code if (request.data.get('debug') or settings.DEBUG) else None
             }, status=status.HTTP_200_OK)
         
         except Exception as e:

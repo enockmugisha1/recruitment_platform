@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -86,8 +87,25 @@ WSGI_APPLICATION = 'recruitment_platform.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# PostgreSQL Configuration (Production)
-if os.environ.get('USE_POSTGRESQL', 'False') == 'True':
+# Priority 1: Use DATABASE_URL if provided (Supabase/Render/etc)
+database_url = os.environ.get('DATABASE_URL', '').strip()
+database_configured = False
+
+if database_url and '[YOUR-PASSWORD]' not in database_url:
+    try:
+        DATABASES = {
+            'default': dj_database_url.parse(
+                database_url,
+                conn_max_age=600,
+                conn_health_checks=True,
+            )
+        }
+        database_configured = True
+    except Exception:
+        pass
+
+# Priority 2: Use individual PostgreSQL parameters
+if not database_configured and os.environ.get('USE_POSTGRESQL', 'False') == 'True':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -101,8 +119,10 @@ if os.environ.get('USE_POSTGRESQL', 'False') == 'True':
             },
         }
     }
-else:
-    # SQLite Configuration (Development)
+    database_configured = True
+
+# Priority 3: Fallback to SQLite for local development
+if not database_configured:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -229,18 +249,24 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Cache Configuration (Redis)
-if os.environ.get('USE_REDIS_CACHE', 'False') == 'True':
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
-            'KEY_PREFIX': 'recruitment',
-            'TIMEOUT': 300,
+redis_url = os.environ.get('REDIS_URL', '').strip()
+if os.environ.get('USE_REDIS_CACHE', 'False') == 'True' and redis_url:
+    try:
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': redis_url,
+                'KEY_PREFIX': 'recruitment',
+                'TIMEOUT': 300,
+            }
         }
-    }
+    except Exception:
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'unique-snowflake',
+            }
+        }
 else:
     CACHES = {
         'default': {

@@ -1,6 +1,7 @@
 from datetime import date
 from rest_framework import serializers
-from .models import JobSeekerApplication, Job
+from .models import JobSeekerApplication, Job, CalendarEvent
+from profiles.models import JobSeekerProfile
 import os
 
 class JobSerializer(serializers.ModelSerializer):
@@ -47,3 +48,45 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
         if value:
             return self.validate_file_extension(value)
         return value
+
+
+class CalendarEventSerializer(serializers.ModelSerializer):
+    recruiter = serializers.PrimaryKeyRelatedField(read_only=True)
+    candidate = serializers.PrimaryKeyRelatedField(
+        queryset=JobSeekerProfile.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    date = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', input_formats=['%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', 'iso-8601'])
+    created_at = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', read_only=True)
+    updated_at = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', read_only=True)
+    
+    # Additional fields for display
+    candidate_name = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CalendarEvent
+        fields = '__all__'
+
+    def get_candidate_name(self, obj):
+        if obj.candidate:
+            return obj.candidate.user.get_full_name()
+        return None
+
+    def get_time(self, obj):
+        return obj.date.strftime('%I:%M %p')
+
+    def validate_date(self, value):
+        from django.utils import timezone
+        if value < timezone.now():
+            raise serializers.ValidationError("Event date cannot be in the past.")
+        return value
+
+    def validate(self, data):
+        # If event type is interview, candidate should be provided
+        if data.get('event_type') == 'interview' and not data.get('candidate'):
+            raise serializers.ValidationError({
+                "candidate": "Candidate is required for interview events."
+            })
+        return data
