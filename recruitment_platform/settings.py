@@ -285,6 +285,16 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@recruitment.com')
 
 # Logging Configuration
+# Create logs directory if it doesn't exist (for local development)
+LOGS_DIR = BASE_DIR / 'logs'
+if not os.path.exists(LOGS_DIR):
+    try:
+        os.makedirs(LOGS_DIR)
+    except OSError:
+        pass  # If we can't create it (e.g., on Render), we'll use console only
+
+# Logging configuration
+# On Render, use console logging only. Locally, use both file and console
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -312,46 +322,53 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
         },
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'recruitment.log',
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'security_file': {
-            'level': 'WARNING',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'security.log',
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'users': {
-            'handlers': ['console', 'file', 'security_file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'profiles': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'applications': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
     },
 }
+
+# Add file logging only if logs directory exists (local development)
+if os.path.exists(LOGS_DIR):
+    LOGGING['handlers']['file'] = {
+        'level': 'INFO',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': LOGS_DIR / 'recruitment.log',
+        'maxBytes': 1024 * 1024 * 10,  # 10 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    LOGGING['handlers']['security_file'] = {
+        'level': 'WARNING',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': LOGS_DIR / 'security.log',
+        'maxBytes': 1024 * 1024 * 10,  # 10 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    # Add file handlers to loggers
+    for logger in LOGGING['loggers'].values():
+        logger['handlers'].append('file')
+    LOGGING['loggers']['users']['handlers'].append('security_file')
 
 # Security Settings
 if not DEBUG:
