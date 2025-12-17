@@ -6,10 +6,21 @@ export default defineConfig({
   plugins: [react()],
   preview: {
     host: '0.0.0.0',
-    port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
+    port: process.env.PORT ? parseInt(process.env.PORT) : 10000,
+    strictPort: true,
+    allowedHosts: [
+      'recruitment-platform-faa8.onrender.com',
+      'localhost',
+      '127.0.0.1'
+    ],
   },
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: [
+      'recruitment-platform-faa8.onrender.com',
+      'localhost',
+      '127.0.0.1'
+    ],
   }
 })

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: recruitment-frontend
+    env: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: VITE_API_BASE_URL
+        value: https://recruitment-backend-5wpy.onrender.com
