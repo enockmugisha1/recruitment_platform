@@ -3,7 +3,6 @@ import {
   createRoutesFromElements,
   RouterProvider,
   Route,
-  Router,
 } from 'react-router-dom'
 import Layout from './components/Layout'
 import Signup from './pages/Signup'

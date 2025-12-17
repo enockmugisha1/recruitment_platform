@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactElement }) {
   ): Promise<boolean> {
     try {
       setLoading(true);
-      const response = await axios.post(
+      await axios.post(
         "auth/register/",
         JSON.stringify({
           email,

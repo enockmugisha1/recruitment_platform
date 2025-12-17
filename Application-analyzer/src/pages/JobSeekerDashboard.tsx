@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { applicationService, profileService, Application, JobSeekerProfile, Job } from "../api/services";
 
 export default function JobSeekerDashboard() {
@@ -233,10 +233,10 @@ export default function JobSeekerDashboard() {
                         color: "#1a2e46",
                         marginBottom: 8,
                       }}>
-                        {app.job?.title || 'Job Title'}
+                        {typeof app.job === 'object' && app.job ? app.job.title : 'Job Title'}
                       </div>
                       <div style={{ color: "#666", fontSize: 14, marginBottom: 4 }}>
-                        {app.job?.company || 'Company Name'}
+                        {typeof app.job === 'object' && app.job ? (app.job as Job).location : 'Location'}
                       </div>
                       <div style={{ color: "#999", fontSize: 13 }}>
                         Applied on {new Date(app.applied_at).toLocaleDateString()}

@@ -1,9 +1,7 @@
-import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import sidehome from "../assets/sidehome.svg"
 import sidejobs from "../assets/sidejobs.svg"
 import sidecand from "../assets/sidecand.svg"
-import sidereports from "../assets/sidereports.svg"
 import sidecal from "../assets/sidecal.svg"
 
 export default function Sidebar() {
