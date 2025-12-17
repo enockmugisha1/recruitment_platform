@@ -1,0 +1,82 @@
+===============================================
+RENDER ENVIRONMENT VARIABLES CONFIGURATION
+===============================================
+
+Copy these environment variables to your Render backend service:
+(Dashboard > Your Service > Environment > Add Environment Variable)
+
+-------------------
+REQUIRED VARIABLES
+-------------------
+
+SECRET_KEY=your-production-secret-key-change-this-to-something-random-and-secure
+
+DEBUG=False
+
+ALLOWED_HOSTS=recruitment-backend-5wpy.onrender.com,*.onrender.com
+
+DATABASE_URL=postgresql://recruitment_user:LdXRAFUjF1CcvxaXVBOtpBmQZXX3s0YN@dpg-d50t3uu3jp1c73egkasg-a.oregon-postgres.render.com/recruitment_db_1863
+
+-------------------
+CORS CONFIGURATION
+-------------------
+The frontend URL is already configured in settings.py:
+✓ https://recruitment-platform-faa8.onrender.com
+
+-------------------
+OPTIONAL VARIABLES
+-------------------
+
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-specific-password
+DEFAULT_FROM_EMAIL=noreply@recruitment.com
+
+-------------------
+REDIS (OPTIONAL)
+-------------------
+If you add Redis on Render, add these:
+
+USE_REDIS_CACHE=True
+REDIS_URL=redis://your-redis-url:6379
+CELERY_BROKER_URL=redis://your-redis-url:6379/0
+CELERY_RESULT_BACKEND=redis://your-redis-url:6379/0
+
+===============================================
+RENDER FRONTEND CONFIGURATION
+===============================================
+
+For your frontend (https://recruitment-platform-faa8.onrender.com):
+
+Environment Variables to add:
+VITE_API_BASE_URL=https://recruitment-backend-5wpy.onrender.com
+
+Build Command: npm install && npm run build
+Start Command: npm run preview
+OR
+Start Command: npx serve -s dist -l 10000
+
+===============================================
+IMPORTANT NOTES
+===============================================
+
+1. Backend CORS is now configured to accept requests from:
+   - https://recruitment-platform-faa8.onrender.com
+
+2. Frontend API base URL is now set to:
+   - https://recruitment-backend-5wpy.onrender.com
+
+3. Make sure to:
+   - Redeploy your backend after updating environment variables
+   - Redeploy your frontend after changing .env file
+   - Test the connection after both are deployed
+
+4. For local development:
+   - Uncomment VITE_API_BASE_URL=http://localhost:8000 in Application-analyzer/.env
+   - Run backend with: python manage.py runserver
+   - Run frontend with: npm run dev
+
+===============================================
