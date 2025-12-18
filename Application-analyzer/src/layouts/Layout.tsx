@@ -1,7 +1,7 @@
-import { useNavigate, Outlet } from "react-router-dom"
+import { useNavigate, NavLink, Outlet, useLocation } from "react-router-dom"
 import pfpImg from "../assets/pfp.png"
 import { useEffect, useState } from "react"
-import Sidebar from "../components/Sidebar"
+import Sidebar from "./Sidebar"
 
 
 export default function Layout() {

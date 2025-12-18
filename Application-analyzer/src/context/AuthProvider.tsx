@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, ReactElement, useEffect, useState } from "react";
 import axios from "../api/axios";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
@@ -36,12 +36,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactElement }) {
   const [user, setUser] = useState<User | null>(null);
   const [authTokens, setAuthTokens] = useState<AuthTokens | null>(
     JSON.parse(localStorage.getItem("authTokens") || "null")
   );
   const [loading, setLoading] = useState(true);
+  // Removed useNavigate from here
 
   useEffect(() => {
     if (authTokens) {
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<boolean> {
     try {
       setLoading(true);
-      await axios.post(
+      const response = await axios.post(
         "auth/register/",
         JSON.stringify({
           email,

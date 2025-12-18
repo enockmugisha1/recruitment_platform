@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { applicationService, Application } from "../api/services";
+import { applicationService, Application, Job } from "../api/services";
 import { Link } from "react-router-dom";
 
 export default function MyApplications() {

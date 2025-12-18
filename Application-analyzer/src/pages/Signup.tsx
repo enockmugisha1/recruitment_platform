@@ -1,17 +1,18 @@
 import { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import { useState } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function Signup() {
+  const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rePassword, setRePassword] = useState("");
-  const [role, setRole] = useState("job_seeker");
+  const [role, setRole] = useState("job_seeker"); // Default role: job_seeker or recruiter
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -19,6 +20,7 @@ export default function Signup() {
     e.preventDefault();
     setLoading(true);
 
+    // Basic validation
     if (password !== rePassword) {
       toast.error("Passwords don't match", {
         position: "top-right",
@@ -34,7 +36,7 @@ export default function Signup() {
     }
 
     try {
-      await axios.post('/auth/register/', {
+      const response = await axios.post('/auth/register/', {
         first_name: firstName,
         last_name: lastName,
         email,

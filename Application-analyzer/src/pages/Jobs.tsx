@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import RAJobs from "../features/home/components/RAJobs";
 import { jobService, applicationService, Job } from "../api/services";
-import { useAuth } from "../context/AuthProvider";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -14,11 +12,6 @@ export default function Jobs() {
     location: '',
     active_only: true,
   });
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  // Check if user is recruiter
-  const isRecruiter = user?.role === 'recruiter';
 
   const fetchJobs = async () => {
     try {
@@ -63,19 +56,8 @@ export default function Jobs() {
   };
 
   return (
-    <div className="mt-5 px-4 sm:px-10">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-        <h2 className="font-semibold text-xl">Available Jobs</h2>
-        {isRecruiter && (
-          <button
-            onClick={() => navigate('/jobs/create')}
-            className="px-4 py-2 bg-accentprimary text-white rounded-lg hover:bg-opacity-90 transition flex items-center gap-2"
-          >
-            <i className="fas fa-plus"></i>
-            Post New Job
-          </button>
-        )}
-      </div>
+    <div className="mt-5 px-10">
+      <h2 className="font-semibold text-xl mb-4">Jobs</h2>
       
       {/* Search and Filter Section */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -167,18 +149,7 @@ export default function Jobs() {
               <p className="text-xs text-gray-500 mt-3">
                 Posted: {new Date(job.created_at).toLocaleDateString()}
               </p>
-              {!isRecruiter && <ApplyButton jobId={job.id} />}
-              {isRecruiter && (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => navigate(`/jobs/${job.id}/applications`)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    <i className="fas fa-users mr-2"></i>
-                    View Applications
-                  </button>
-                </div>
-              )}
+              <ApplyButton jobId={job.id} />
             </div>
           ))}
         </div>
