@@ -10,6 +10,7 @@ import ov8 from "../assets/ov8.svg"
 import { useNavigate } from "react-router-dom"
 import axios from "../../../api/axios"
 import { toast } from 'react-toastify'
+import { useAuth } from "../../../context/AuthProvider"
 
 interface DashboardStats {
   interviews_scheduled: number
@@ -24,6 +25,7 @@ interface DashboardStats {
 
 export default function Overview() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     interviews_scheduled: 0,
     feedback_pending: 0,
@@ -35,10 +37,17 @@ export default function Overview() {
     project_allocation_pending: 0,
   })
   const [loading, setLoading] = useState(true)
+  
+  // Check if user is recruiter
+  const isRecruiter = user?.role === 'recruiter';
 
   useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+    if (isRecruiter) {
+      fetchDashboardStats()
+    } else {
+      setLoading(false)
+    }
+  }, [isRecruiter])
 
   const fetchDashboardStats = async () => {
     try {
@@ -55,19 +64,54 @@ export default function Overview() {
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="font-semibold text-xl indent-6">Overview</h2>
-        <button 
-          onClick={() => navigate('/jobs/create')}
-          className="px-4 py-2 bg-accentprimary text-white rounded-lg flex gap-2 hover:bg-darkblue transition group text-sm"
-        >
-          <span className="border-2 w-6 aspect-square rounded-full flex items-center justify-center">
-            <i className="fa-solid fa-plus leading-3 block"></i>
-          </span>
-          Add Job
-        </button>
+        <h2 className="font-semibold text-xl indent-6">
+          {isRecruiter ? 'Recruiter Overview' : 'Browse Jobs'}
+        </h2>
+        {isRecruiter && (
+          <button 
+            onClick={() => navigate('/jobs/create')}
+            className="px-4 py-2 bg-accentprimary text-white rounded-lg flex gap-2 hover:bg-darkblue transition group text-sm"
+          >
+            <span className="border-2 w-6 aspect-square rounded-full flex items-center justify-center">
+              <i className="fa-solid fa-plus leading-3 block"></i>
+            </span>
+            Post New Job
+          </button>
+        )}
+        {!isRecruiter && (
+          <button 
+            onClick={() => navigate('/jobs')}
+            className="px-4 py-2 bg-accentsecondary text-white rounded-lg flex gap-2 hover:bg-opacity-90 transition text-sm"
+          >
+            <i className="fa-solid fa-briefcase mr-2"></i>
+            Browse All Jobs
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mt-5 gap-4 lg:gap-x-4 lg:gap-y-10">
-        {loading ? (
+        {!isRecruiter ? (
+          <div className="col-span-full text-center py-10 px-4">
+            <i className="fa-solid fa-briefcase text-5xl text-accentprimary mb-4"></i>
+            <h3 className="text-2xl font-semibold text-gray-800 mb-3">Find Your Dream Job</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Browse through our latest job openings and apply to positions that match your skills and experience.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => navigate('/jobs')}
+                className="px-6 py-3 bg-accentsecondary text-white rounded-lg hover:bg-opacity-90 transition"
+              >
+                View All Jobs
+              </button>
+              <button
+                onClick={() => navigate('/my-applications')}
+                className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+              >
+                My Applications
+              </button>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="col-span-full text-center py-10">
             <i className="fa-solid fa-spinner fa-spin text-3xl text-accentprimary"></i>
             <p className="mt-3 text-textdark/50">Loading statistics...</p>

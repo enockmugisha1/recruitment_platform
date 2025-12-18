@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { calendarService } from '../api/services';
 
 interface CalendarEvent {
   id: number;
   title: string;
   date: Date;
   time: string;
-  type: 'interview' | 'deadline' | 'meeting' | 'other';
+  event_type: 'interview' | 'deadline' | 'meeting' | 'other';
   description?: string;
-  candidate?: string;
+  candidate?: number;
+  candidate_name?: string;
   location?: string;
 }
 
@@ -18,37 +20,47 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
-  
-  // Sample events - In production, fetch from backend
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    {
-      id: 1,
-      title: "Interview: John Doe",
-      date: new Date(2025, 11, 15, 10, 0),
-      time: "10:00 AM",
-      type: "interview",
-      candidate: "John Doe",
-      location: "Meeting Room A",
-      description: "Technical interview for Senior Developer position"
-    },
-    {
-      id: 2,
-      title: "Application Deadline",
-      date: new Date(2025, 11, 20),
-      time: "11:59 PM",
-      type: "deadline",
-      description: "Django Developer position closes"
-    },
-    {
-      id: 3,
-      title: "Team Meeting",
-      date: new Date(2025, 11, 12, 14, 0),
-      time: "2:00 PM",
-      type: "meeting",
-      location: "Conference Room",
-      description: "Weekly recruitment team sync"
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch events from backend
+  useEffect(() => {
+    fetchEvents();
+  }, [currentDate]);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await calendarService.getEvents({
+        month: currentDate.getMonth() + 1,
+        year: currentDate.getFullYear(),
+      });
+      
+      // Transform backend data to match frontend format
+      const transformedEvents = response.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        date: new Date(event.date),
+        time: new Date(event.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        event_type: event.event_type,
+        description: event.description,
+        candidate: event.candidate,
+        candidate_name: event.candidate_name,
+        location: event.location,
+      }));
+      
+      setEvents(transformedEvents);
+    } catch (error: any) {
+      console.error('Error fetching events:', error);
+      if (error.response?.status !== 403) {
+        toast.error('Failed to load events');
+      }
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   // Get days in month
   const getDaysInMonth = (date: Date) => {
@@ -83,8 +95,51 @@ export default function Calendar() {
     setSelectedDate(new Date());
   };
 
-  const handleScheduleInterview = (newEvent: CalendarEvent) => {
-    setEvents([...events, newEvent]);
+  const handleScheduleInterview = async (eventData: any) => {
+    try {
+      await calendarService.createEvent(eventData);
+      toast.success('Event scheduled successfully!');
+      fetchEvents(); // Refresh events
+      setShowModal(false);
+    } catch (error: any) {
+      console.error('Error creating event:', error);
+      toast.error(error.response?.data?.detail || 'Failed to schedule event');
+    }
+  };
+
+  const handleEditEvent = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateEvent = async (eventData: any) => {
+    if (!selectedEvent) return;
+    
+    try {
+      await calendarService.updateEvent(selectedEvent.id, eventData);
+      toast.success('Event updated successfully!');
+      fetchEvents(); // Refresh events
+      setShowEditModal(false);
+      setSelectedEvent(null);
+    } catch (error: any) {
+      console.error('Error updating event:', error);
+      toast.error(error.response?.data?.detail || 'Failed to update event');
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) {
+      return;
+    }
+
+    try {
+      await calendarService.deleteEvent(eventId);
+      toast.success('Event deleted successfully!');
+      fetchEvents(); // Refresh events
+    } catch (error: any) {
+      console.error('Error deleting event:', error);
+      toast.error(error.response?.data?.detail || 'Failed to delete event');
+    }
   };
 
   const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
@@ -107,7 +162,7 @@ export default function Calendar() {
            year === selectedDate.getFullYear();
   };
 
-  const getEventTypeColor = (type: CalendarEvent['type']) => {
+  const getEventTypeColor = (type: CalendarEvent['event_type']) => {
     switch (type) {
       case 'interview': return 'bg-blue-500';
       case 'deadline': return 'bg-red-500';
@@ -116,7 +171,7 @@ export default function Calendar() {
     }
   };
 
-  const getEventTypeBadge = (type: CalendarEvent['type']) => {
+  const getEventTypeBadge = (type: CalendarEvent['event_type']) => {
     switch (type) {
       case 'interview': return 'bg-blue-100 text-blue-700';
       case 'deadline': return 'bg-red-100 text-red-700';
@@ -225,7 +280,7 @@ export default function Calendar() {
                         {dayEvents.slice(0, 3).map(event => (
                           <div
                             key={event.id}
-                            className={`w-1.5 h-1.5 rounded-full ${getEventTypeColor(event.type)}`}
+                            className={`w-1.5 h-1.5 rounded-full ${getEventTypeColor(event.event_type)}`}
                             title={event.title}
                           ></div>
                         ))}
@@ -275,19 +330,24 @@ export default function Calendar() {
 
             {/* Event List */}
             <div className="space-y-3 max-h-[600px] overflow-y-auto">
-              {(selectedDate ? getEventsForDate(selectedDate) : events.slice(0, 10))
+              {loading ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-spinner fa-spin text-2xl text-accentprimary"></i>
+                  <p className="mt-3 text-sm text-gray-500">Loading events...</p>
+                </div>
+              ) : (selectedDate ? getEventsForDate(selectedDate) : events.slice(0, 10))
                 .sort((a, b) => a.date.getTime() - b.date.getTime())
                 .map(event => (
                   <div
                     key={event.id}
-                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h4 className="font-semibold text-gray-800 text-sm flex-1">
                         {event.title}
                       </h4>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventTypeBadge(event.type)}`}>
-                        {event.type}
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventTypeBadge(event.event_type)}`}>
+                        {event.event_type}
                       </span>
                     </div>
                     
@@ -297,10 +357,10 @@ export default function Calendar() {
                         <span>{event.time}</span>
                       </div>
                       
-                      {event.candidate && (
+                      {event.candidate_name && (
                         <div className="flex items-center gap-2">
                           <i className="fas fa-user w-4"></i>
-                          <span>{event.candidate}</span>
+                          <span>{event.candidate_name}</span>
                         </div>
                       )}
                       
@@ -320,11 +380,17 @@ export default function Calendar() {
                     </div>
 
                     <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                      <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                      <button 
+                        onClick={() => handleEditEvent(event)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium transition"
+                      >
                         <i className="fas fa-edit mr-1"></i>
                         Edit
                       </button>
-                      <button className="text-xs text-red-600 hover:text-red-700 font-medium">
+                      <button 
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium transition"
+                      >
                         <i className="fas fa-trash mr-1"></i>
                         Delete
                       </button>
@@ -332,10 +398,16 @@ export default function Calendar() {
                   </div>
                 ))}
 
-              {(selectedDate ? getEventsForDate(selectedDate) : events).length === 0 && (
+              {!loading && (selectedDate ? getEventsForDate(selectedDate) : events).length === 0 && (
                 <div className="text-center py-8 text-gray-400">
                   <i className="fas fa-calendar-times text-3xl mb-2"></i>
                   <p className="text-sm">No events scheduled</p>
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="mt-4 px-4 py-2 bg-accentprimary text-white rounded-lg text-xs hover:bg-opacity-90"
+                  >
+                    Schedule Your First Event
+                  </button>
                 </div>
               )}
             </div>
@@ -350,6 +422,19 @@ export default function Calendar() {
         onSchedule={handleScheduleInterview}
         selectedDate={selectedDate || undefined}
       />
+
+      {/* Edit Event Modal - Using same modal for now, can be extended later */}
+      {showEditModal && selectedEvent && (
+        <ScheduleInterviewModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedEvent(null);
+          }}
+          onSchedule={handleUpdateEvent}
+          selectedDate={selectedEvent.date}
+        />
+      )}
     </div>
   );
 }
