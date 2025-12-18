@@ -1,6 +1,8 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.decorators import action
 from django.db.models import Q, Count
+from django.utils import timezone
+from datetime import timedelta
 from .serializers import JobSeekerApplicationSerializer, JobSerializer, CalendarEventSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
@@ -116,6 +118,7 @@ class JobViewSet(viewsets.ModelViewSet):
         operation_summary="Job Statistics",
         operation_description="Get statistics about jobs and applications."
     )
+    @action(detail=False, methods=['get'])
     def statistics(self, request):
         """Get job statistics"""
         total_jobs = Job.objects.count()
@@ -128,6 +131,49 @@ class JobViewSet(viewsets.ModelViewSet):
             'total_applications': total_applications,
             'by_job_type': list(Job.objects.values('job_type').annotate(count=Count('id')))
         })
+
+    @swagger_auto_schema(
+        operation_summary="Dashboard Statistics",
+        operation_description="Get comprehensive dashboard statistics for recruiters."
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def dashboard_stats(self, request):
+        """Get dashboard statistics for recruiter"""
+        # Check if user is recruiter
+        try:
+            recruiter_profile = request.user.recruiter_profile
+        except:
+            return Response({'error': 'Only recruiters can access dashboard stats'}, 
+                          status=status.HTTP_403_FORBIDDEN)
+        
+        # Get recruiter's jobs
+        recruiter_jobs = Job.objects.filter(recruiter=recruiter_profile)
+        
+        # Get all applications for recruiter's jobs
+        all_applications = JobSeekerApplication.objects.filter(job__recruiter=recruiter_profile)
+        
+        # Get calendar events
+        upcoming_interviews = CalendarEvent.objects.filter(
+            recruiter=recruiter_profile,
+            event_type='interview',
+            date__gte=timezone.now()
+        ).order_by('date')[:10]
+        
+        # Calculate statistics
+        stats = {
+            'interviews_scheduled': upcoming_interviews.count(),
+            'feedback_pending': all_applications.filter(status='under_review').count(),
+            'approval_pending': all_applications.filter(status='submitted').count(),
+            'offer_acceptance_pending': all_applications.filter(status='shortlisted').count(),
+            'documentation_pending': all_applications.filter(status='accepted').count(),
+            'total_candidates': all_applications.count(),
+            'supervisor_allocation_pending': 0,  # Can be extended
+            'project_allocation_pending': 0,  # Can be extended
+            'total_jobs': recruiter_jobs.count(),
+            'active_jobs': recruiter_jobs.filter(deadline__gte=timezone.now().date()).count(),
+        }
+        
+        return Response(stats)
 
 # Job seeker application view
 class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
@@ -293,3 +339,49 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="Upcoming Events",
+        operation_description="Get upcoming calendar events grouped by today, tomorrow, and this week."
+    )
+    @action(detail=False, methods=['get'])
+    def upcoming(self, request):
+        """Get upcoming events grouped by time period"""
+        try:
+            recruiter_profile = request.user.recruiter_profile
+        except:
+            return Response({'error': 'Only recruiters can access calendar'}, 
+                          status=status.HTTP_403_FORBIDDEN)
+        
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        tomorrow_end = today_end + timedelta(days=1)
+        week_end = today_start + timedelta(days=7)
+        
+        # Get events
+        today_events = CalendarEvent.objects.filter(
+            recruiter=recruiter_profile,
+            date__gte=today_start,
+            date__lt=today_end
+        ).select_related('candidate__user').order_by('date')
+        
+        tomorrow_events = CalendarEvent.objects.filter(
+            recruiter=recruiter_profile,
+            date__gte=today_end,
+            date__lt=tomorrow_end
+        ).select_related('candidate__user').order_by('date')
+        
+        week_events = CalendarEvent.objects.filter(
+            recruiter=recruiter_profile,
+            date__gte=tomorrow_end,
+            date__lt=week_end
+        ).select_related('candidate__user').order_by('date')
+        
+        serializer = self.get_serializer([today_events, tomorrow_events, week_events], many=False)
+        
+        return Response({
+            'today': CalendarEventSerializer(today_events, many=True).data,
+            'tomorrow': CalendarEventSerializer(tomorrow_events, many=True).data,
+            'this_week': CalendarEventSerializer(week_events, many=True).data,
+        })

@@ -108,6 +108,12 @@ export const jobService = {
     const response = await axios.get('/access/jobs/statistics/');
     return response.data;
   },
+
+  // Get dashboard statistics
+  getDashboardStats: async () => {
+    const response = await axios.get('/access/jobs/dashboard_stats/');
+    return response.data;
+  },
 };
 
 // ============= APPLICATION SERVICES =============
@@ -213,13 +219,13 @@ export const calendarService = {
     year?: number;
     type?: string;
   }) => {
-    const response = await axios.get('/access/calendar-events/', { params });
+    const response = await axios.get('/access/calendar/', { params });
     return response.data;
   },
 
   // Get single event
   getEvent: async (eventId: number) => {
-    const response = await axios.get(`/access/calendar-events/${eventId}/`);
+    const response = await axios.get(`/access/calendar/${eventId}/`);
     return response.data;
   },
 
@@ -232,19 +238,25 @@ export const calendarService = {
     location?: string;
     description?: string;
   }) => {
-    const response = await axios.post('/access/calendar-events/', eventData);
+    const response = await axios.post('/access/calendar/', eventData);
     return response.data;
   },
 
   // Update event
   updateEvent: async (eventId: number, eventData: any) => {
-    const response = await axios.put(`/access/calendar-events/${eventId}/`, eventData);
+    const response = await axios.put(`/access/calendar/${eventId}/`, eventData);
     return response.data;
   },
 
   // Delete event
   deleteEvent: async (eventId: number) => {
-    const response = await axios.delete(`/access/calendar-events/${eventId}/`);
+    const response = await axios.delete(`/access/calendar/${eventId}/`);
+    return response.data;
+  },
+
+  // Get upcoming events
+  getUpcomingEvents: async () => {
+    const response = await axios.get('/access/calendar/upcoming/');
     return response.data;
   },
 };
