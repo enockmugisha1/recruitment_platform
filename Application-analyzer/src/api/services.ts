@@ -249,6 +249,40 @@ export const calendarService = {
   },
 };
 
+// ============= AI RESUME ANALYZER SERVICES =============
+export const aiResumeService = {
+  // Analyze resume with AI
+  analyzeResume: async (resumeFile: File) => {
+    const formData = new FormData();
+    formData.append('resume', resumeFile);
+    
+    const response = await axios.post('/ai/analyze-resume/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Match candidate to job using AI
+  matchCandidateToJob: async (applicationId: number) => {
+    const response = await axios.post(`/ai/match-candidate/${applicationId}/`);
+    return response.data;
+  },
+
+  // Get AI recommendations for job
+  getJobRecommendations: async (jobId: number) => {
+    const response = await axios.get(`/ai/job-recommendations/${jobId}/`);
+    return response.data;
+  },
+
+  // Bulk analyze applications for a job
+  bulkAnalyzeApplications: async (jobId: number) => {
+    const response = await axios.post(`/ai/bulk-analyze/${jobId}/`);
+    return response.data;
+  },
+};
+
 // ============= TYPES =============
 export interface Job {
   id: number;
