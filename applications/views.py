@@ -24,14 +24,14 @@ class JobViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """
         Allow anyone to view jobs (list, retrieve)
-        Require authentication and IsJobPoster for create, update, delete
+        Require only authentication for create, update, delete
         """
         if self.action in ['list', 'retrieve', 'search_jobs', 'statistics']:
             # Public access for viewing jobs
             return []
         else:
-            # Require authentication and job poster permission for modifications
-            return [IsAuthenticated(), IsJobPoster()]
+            # Only require authentication, no role check
+            return [IsAuthenticated()]
     
     def get_queryset(self):
         """
@@ -58,11 +58,14 @@ class JobViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        # Create recruiter profile if it doesn't exist
         try:
             recruiter_profile = self.request.user.recruiter_profile
-            serializer.save(recruiter=recruiter_profile)
-        except Exception as error:
-            raise PermissionDenied(f'{error} You have to create recruiter profile.')
+        except AttributeError:
+            from profiles.models import RecruiterProfile
+            recruiter_profile = RecruiterProfile.objects.create(user=self.request.user)
+        
+        serializer.save(recruiter=recruiter_profile)
     
     @swagger_auto_schema(
         operation_description="List all jobs. Supports filtering by job_type, location, and active_only. Search by title, description, location, requirements.",
@@ -177,7 +180,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
 # Job seeker application view
 class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsJobApplicant]
+    permission_classes = [IsAuthenticated]  # Anyone can access
     serializer_class = JobSeekerApplicationSerializer
     queryset = JobSeekerApplication.objects.select_related('applicant__user', 'job__recruiter').all()
     filter_backends = [filters.OrderingFilter]
@@ -189,24 +192,25 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):
             return JobSeekerApplication.objects.none()
         
-        try:
-            job_seeker_profile = self.request.user.job_seeker_profile
-            queryset = JobSeekerApplication.objects.filter(applicant=job_seeker_profile)
-            
-            # Filter by status
-            status_filter = self.request.query_params.get('status', None)
-            if status_filter:
-                queryset = queryset.filter(status=status_filter)
-            
-            return queryset
-        except Exception as error:
-            raise PermissionDenied(f'{error} You have to create a job seeker profile.')
+        # Show all applications to everyone
+        queryset = JobSeekerApplication.objects.all()
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status', None)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset
 
     def perform_create(self, serializer):
+        # Create job seeker profile if it doesn't exist
         try:
             job_seeker_profile = self.request.user.job_seeker_profile
-            serializer.save(applicant=job_seeker_profile)
-        except Exception as error:
+        except AttributeError:
+            from profiles.models import JobSeekerProfile
+            job_seeker_profile = JobSeekerProfile.objects.create(user=self.request.user)
+        
+        serializer.save(applicant=job_seeker_profile)
             raise PermissionDenied(f'{error} You have to create a job seeker profile.')
 
     @swagger_auto_schema(
@@ -259,14 +263,19 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
 # Calendar Event ViewSet
 class CalendarEventViewSet(viewsets.ModelViewSet):
     serializer_class = CalendarEventSerializer
-    permission_classes = [IsAuthenticated, IsJobPoster]
+    permission_classes = [IsAuthenticated]  # Anyone can access calendar
     
     def get_queryset(self):
         """
-        Return calendar events for the authenticated recruiter only
+        Return calendar events for the authenticated user
         Can filter by month and year
         """
-        queryset = CalendarEvent.objects.select_related('recruiter__user', 'candidate__user').filter(recruiter=self.request.user.recruiter_profile)
+        # Try to get recruiter profile, if not exists, return empty queryset
+        try:
+            recruiter_profile = self.request.user.recruiter_profile
+            queryset = CalendarEvent.objects.select_related('recruiter__user', 'candidate__user').filter(recruiter=recruiter_profile)
+        except:
+            queryset = CalendarEvent.objects.none()
         
         # Optional filters
         month = self.request.query_params.get('month', None)
@@ -286,12 +295,16 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Automatically set the recruiter when creating an event
+        Create recruiter profile if doesn't exist
         """
         try:
             recruiter_profile = self.request.user.recruiter_profile
-            serializer.save(recruiter=recruiter_profile)
         except AttributeError:
-            raise PermissionDenied("Only recruiters can create calendar events.")
+            # Create recruiter profile if it doesn't exist
+            from profiles.models import RecruiterProfile
+            recruiter_profile = RecruiterProfile.objects.create(user=self.request.user)
+        
+        serializer.save(recruiter=recruiter_profile)
     
     @swagger_auto_schema(
         operation_summary="List Calendar Events",
