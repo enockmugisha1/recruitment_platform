@@ -9,33 +9,44 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: false, // Changed to false - cookies not needed for JWT
 });
 
-// Request interceptor - Add auth token to protected requests only
+// Request interceptor - Add auth token to protected requests
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Public endpoints that don't need authentication
-    const publicEndpoints = [
+    // Public endpoints that don't need authentication (only for GET requests)
+    const publicGETEndpoints = [
+      '/access/jobs',  // Public job listings (GET only)
+    ];
+    
+    // Auth endpoints that don't need token
+    const authEndpoints = [
       '/auth/register/',
       '/auth/login/',
       '/auth/token/refresh/',
       '/auth/otp/request/',
       '/auth/otp/verify/',
-      '/auth/password/reset/',  // Password reset with OTP
-      '/access/jobs/', // Public job listings (GET)
+      '/auth/password/reset/',
     ];
     
-    // Check if this is a public endpoint
-    const isPublicEndpoint = publicEndpoints.some(endpoint => 
+    // Check if this is a public GET request
+    const isPublicGET = config.method?.toLowerCase() === 'get' && 
+      publicGETEndpoints.some(endpoint => config.url?.includes(endpoint));
+    
+    // Check if this is an auth endpoint
+    const isAuthEndpoint = authEndpoints.some(endpoint => 
       config.url?.includes(endpoint)
     );
     
-    // Only add token if NOT a public endpoint
-    if (!isPublicEndpoint) {
+    // Add token for all requests except public GETs and auth endpoints
+    if (!isPublicGET && !isAuthEndpoint) {
       const token = localStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('🔑 Token added to request:', config.url);
+      } else {
+        console.warn('⚠️ No token found for protected request:', config.url);
       }
     }
     
