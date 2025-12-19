@@ -1,4 +1,4 @@
-import { useNavigate, NavLink, Outlet, useLocation } from "react-router-dom"
+import { useNavigate, Outlet } from "react-router-dom"
 import pfpImg from "../assets/pfp.png"
 import { useEffect, useState } from "react"
 import Sidebar from "./Sidebar"

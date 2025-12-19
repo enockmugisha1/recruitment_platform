@@ -1,15 +1,14 @@
-import { useNavigate, NavLink, Outlet, useLocation, Link } from "react-router-dom"
+import { useNavigate, Outlet, Link } from "react-router-dom"
 import pfpImg from "../assets/pfp.png"
 import { useEffect, useState } from "react"
 import Sidebar from "./Sidebar"
-import CandGeneral from "../features/candidates/pages/CandGeneral"
 import { jwtDecode } from "jwt-decode";
 
 
 export default function Layout() {
   
   const [showWind, setShowWind] = useState(false)
-  const [ email, setEmail ] = useState(undefined)
+  const [ email, setEmail ] = useState<string | undefined>(undefined)
   const [user, setUser] = useState<any>(null)
   const navigate = useNavigate()
 
