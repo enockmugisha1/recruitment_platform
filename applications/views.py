@@ -211,7 +211,6 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
             job_seeker_profile = JobSeekerProfile.objects.create(user=self.request.user)
         
         serializer.save(applicant=job_seeker_profile)
-            raise PermissionDenied(f'{error} You have to create a job seeker profile.')
 
     @swagger_auto_schema(
         operation_description="List all job applications of the job seeker. Can filter by status.",
