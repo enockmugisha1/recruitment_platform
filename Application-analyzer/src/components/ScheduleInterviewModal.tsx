@@ -14,25 +14,22 @@ interface CalendarEvent {
 }
 
 interface ScheduleInterviewModalProps {
-  isOpen: boolean;
   onClose: () => void;
-  onSchedule: (event: CalendarEvent) => void;
-  selectedDate?: Date;
+  onSchedule: (event: any) => void;
+  initialDate?: Date;
 }
 
-export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, selectedDate }: ScheduleInterviewModalProps) {
+export default function ScheduleInterviewModal({ onClose, onSchedule, initialDate }: ScheduleInterviewModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    candidate: '',
-    date: selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    candidate_id: '',
+    date: initialDate ? initialDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     time: '10:00',
     location: '',
     description: '',
-    type: 'interview' as 'interview' | 'deadline' | 'meeting' | 'other'
+    event_type: 'interview' as 'interview' | 'deadline' | 'meeting' | 'other'
   });
-
-  if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -46,24 +43,23 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
     setLoading(true);
 
     try {
-      // TODO: Connect to backend API when calendar endpoints are ready
-      // const response = await axios.post('/api/calendar/events/', formData);
+      // Combine date and time into ISO format
+      const dateTime = `${formData.date}T${formData.time}:00`;
       
-      // For now, create local event
-      const newEvent: CalendarEvent = {
-        id: Date.now(),
+      // Prepare data for backend
+      const eventData = {
         title: formData.title,
-        date: new Date(formData.date + 'T' + formData.time),
-        time: formData.time,
-        type: formData.type,
-        candidate: formData.candidate,
-        location: formData.location,
-        description: formData.description
+        event_type: formData.event_type,
+        date: dateTime,
+        location: formData.location || '',
+        description: formData.description || '',
+        candidate: formData.candidate_id ? parseInt(formData.candidate_id) : null,
       };
 
-      onSchedule(newEvent);
+      // Call the onSchedule function (which calls backend)
+      await onSchedule(eventData);
       
-      toast.success('Interview scheduled successfully!', {
+      toast.success('Event scheduled successfully!', {
         position: 'top-right',
         autoClose: 3000,
       });
@@ -73,15 +69,20 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
       // Reset form
       setFormData({
         title: '',
-        candidate: '',
+        candidate_id: '',
         date: new Date().toISOString().split('T')[0],
         time: '10:00',
         location: '',
         description: '',
-        type: 'interview'
+        event_type: 'interview'
       });
     } catch (err: any) {
-      toast.error('Failed to schedule interview', {
+      console.error('Error scheduling event:', err);
+      const errorMessage = err.response?.data?.detail || 
+                          err.response?.data?.error ||
+                          err.message ||
+                          'Failed to schedule event';
+      toast.error(errorMessage, {
         position: 'top-right',
         autoClose: 5000,
       });
@@ -112,8 +113,8 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
               Event Type <span className="text-red-500">*</span>
             </label>
             <select
-              name="type"
-              value={formData.type}
+              name="event_type"
+              value={formData.event_type}
               onChange={handleChange}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accentsecondary"
@@ -141,20 +142,22 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
             />
           </div>
 
-          {/* Candidate Name */}
+          {/* Candidate ID (Optional) */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Candidate Name {formData.type === 'interview' && <span className="text-red-500">*</span>}
+              Candidate ID <span className="text-gray-500 text-xs">(optional, for interviews)</span>
             </label>
             <input
-              type="text"
-              name="candidate"
-              value={formData.candidate}
+              type="number"
+              name="candidate_id"
+              value={formData.candidate_id}
               onChange={handleChange}
-              required={formData.type === 'interview'}
-              placeholder="Candidate's full name"
+              placeholder="Enter candidate ID (if applicable)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accentsecondary"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Leave empty for general meetings/deadlines. For interviews, you can add candidate ID.
+            </p>
           </div>
 
           {/* Date and Time Row */}
@@ -225,7 +228,7 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
             <i className="fas fa-info-circle text-blue-600 mt-0.5"></i>
             <p className="text-sm text-blue-800">
-              The candidate will be notified via email once the interview is scheduled.
+              Event will be added to your calendar. You can view and manage all events from the calendar page.
             </p>
           </div>
 
@@ -251,7 +254,7 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSchedule, se
               ) : (
                 <>
                   <i className="fas fa-calendar-check"></i>
-                  Schedule Interview
+                  Schedule Event
                 </>
               )}
             </button>
