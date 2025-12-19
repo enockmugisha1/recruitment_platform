@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import OTPDisplay from "../components/OTPDisplay";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ export default function ForgotPassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showOTPDisplay, setShowOTPDisplay] = useState(false);
+  const [receivedOTP, setReceivedOTP] = useState("");
 
   // Step 1: Request OTP
   const handleRequestOTP = async (e: FormEvent) => {
@@ -21,9 +24,11 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
+      // Add debug flag to get OTP in response
       const response = await axios.post('/auth/otp/request/', {
         email,
-        purpose: 'password_reset'
+        purpose: 'password_reset',
+        debug: true  // Request OTP in response for testing
       });
 
       toast.success(response.data.message || 'OTP sent to your email!', {
@@ -31,12 +36,29 @@ export default function ForgotPassword() {
         autoClose: 5000,
       });
 
-      // Show OTP in console for testing (remove in production)
+      // Show OTP prominently for testing
       if (response.data.otp_code) {
-        console.log('🔐 OTP Code:', response.data.otp_code);
-        toast.info(`OTP Code (testing): ${response.data.otp_code}`, {
+        const otpFromResponse = response.data.otp_code;
+        setReceivedOTP(otpFromResponse);
+        setShowOTPDisplay(true);
+        
+        console.log('🔐 OTP Code:', otpFromResponse);
+        console.log(`
+╔════════════════════════════════════╗
+║   🔐 YOUR OTP CODE (FOR TESTING)  ║
+╠════════════════════════════════════╣
+║                                    ║
+║         CODE: ${otpFromResponse}   ║
+║                                    ║
+║   Valid for 15 minutes             ║
+║                                    ║
+╚════════════════════════════════════╝
+        `);
+      } else {
+        // If no OTP in response, tell user to check console/logs
+        toast.warning('OTP sent! Check your email or server console logs', {
           position: "top-right",
-          autoClose: 10000,
+          autoClose: 8000,
         });
       }
 
@@ -50,6 +72,7 @@ export default function ForgotPassword() {
         position: "top-right",
         autoClose: 5000,
       });
+      console.error('OTP Request Error:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -264,6 +287,16 @@ export default function ForgotPassword() {
           </form>
         )}
       </div>
+      
+      {/* OTP Display Modal */}
+      {showOTPDisplay && receivedOTP && (
+        <OTPDisplay
+          otpCode={receivedOTP}
+          email={email}
+          purpose="Password Reset"
+          onClose={() => setShowOTPDisplay(false)}
+        />
+      )}
     </div>
   );
 }

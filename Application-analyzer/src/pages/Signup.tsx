@@ -4,6 +4,7 @@ import axios from "../api/axios";
 import { useState } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import OTPDisplay from "../components/OTPDisplay";
 
 export default function Signup() {
   const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
@@ -14,6 +15,8 @@ export default function Signup() {
   const [rePassword, setRePassword] = useState("");
   const [role, setRole] = useState("job_seeker"); // Default role: job_seeker or recruiter
   const [loading, setLoading] = useState(false);
+  const [showOTPDisplay, setShowOTPDisplay] = useState(false);
+  const [receivedOTP, setReceivedOTP] = useState("");
   const navigate = useNavigate();
 
   const handleSignup = async (e: FormEvent) => {
@@ -42,25 +45,52 @@ export default function Signup() {
         email,
         password,
         password_confirm: rePassword, // Backend requires password_confirm
-        role
+        role,
+        debug: true  // Request OTP in response for testing
       });
 
       // Backend returns: { message, email, otp_code }
-      // Not tokens - user needs to verify email or just login
-
-      // Show success toast
-      toast.success('Registration successful! Please login.', {
+      // Show OTP if provided
+      if (response.data.otp_code) {
+        const otpCode = response.data.otp_code;
+        setReceivedOTP(otpCode);
+        setShowOTPDisplay(true);
+        
+        console.log('🔐 Registration OTP Code:', otpCode);
+        console.log(`
+╔════════════════════════════════════╗
+║  🔐 REGISTRATION OTP (FOR TESTING) ║
+╠════════════════════════════════════╣
+║                                    ║
+║         CODE: ${otpCode}           ║
+║         EMAIL: ${email}            ║
+║                                    ║
+║   Valid for 15 minutes             ║
+║   (Check server console too)       ║
+║                                    ║
+╚════════════════════════════════════╝
+        `);
+        
+        toast.info('Registration successful! OTP displayed for verification.', {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      } else {
+        // Show success toast
+        toast.success('Registration successful! Check server console for OTP.', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+      
+      // Show login redirect message
+      toast.info('You can now login with your credentials', {
         position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
+        autoClose: 5000,
       });
       
-      // Redirect to login page after successful registration
-      setTimeout(() => navigate('/login'), 2000);
+      // Redirect to login page after delay
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
       // Extract error message from response
       let errorMessage = "Registration failed";
@@ -196,6 +226,20 @@ export default function Signup() {
       <button className="w-full h-10 text-sm rounded-lg bg-accentprimary text-white font-semibold mt-4 shadow-black/25 shadow-inner hover:shadow-transparent hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
         Sign Up with Google <i className="text-xl fa-brands fa-google"></i>
       </button>
+      
+      {/* OTP Display Modal */}
+      {showOTPDisplay && receivedOTP && (
+        <OTPDisplay
+          otpCode={receivedOTP}
+          email={email}
+          purpose="Email Verification"
+          onClose={() => {
+            setShowOTPDisplay(false);
+            // Redirect to login after closing OTP display
+            setTimeout(() => navigate('/login'), 1000);
+          }}
+        />
+      )}
     </>
   );
 }
