@@ -40,11 +40,13 @@ export default function ScheduleInterviewModal({ onClose, onSchedule, initialDat
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('📝 Form submitted with data:', formData);
     setLoading(true);
 
     try {
       // Combine date and time into ISO format
       const dateTime = `${formData.date}T${formData.time}:00`;
+      console.log('🕐 Combined datetime:', dateTime);
       
       // Prepare data for backend
       const eventData = {
@@ -56,6 +58,8 @@ export default function ScheduleInterviewModal({ onClose, onSchedule, initialDat
         candidate: formData.candidate_id ? parseInt(formData.candidate_id) : null,
       };
 
+      console.log('📤 Sending event data to backend:', eventData);
+      
       // Call the onSchedule function (which calls backend)
       await onSchedule(eventData);
       

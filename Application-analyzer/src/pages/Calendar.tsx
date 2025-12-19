@@ -30,13 +30,16 @@ export default function Calendar() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
+      console.log('📅 Fetching events for:', currentDate.getMonth() + 1, '/', currentDate.getFullYear());
       const data = await calendarService.getEvents({
         month: currentDate.getMonth() + 1,
         year: currentDate.getFullYear(),
       });
+      console.log('✅ Events loaded:', data.results || data || []);
       setEvents(data.results || data || []);
-    } catch (error) {
-      console.error('Error fetching events:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching events:', error);
+      console.error('Error response:', error.response?.data);
       toast.error('Failed to load calendar events');
     } finally {
       setLoading(false);
@@ -78,13 +81,21 @@ export default function Calendar() {
   };
 
   const handleScheduleInterview = async (eventData: any) => {
+    console.log('📅 Creating calendar event:', eventData);
     try {
-      await calendarService.createEvent(eventData);
+      const response = await calendarService.createEvent(eventData);
+      console.log('✅ Event created successfully:', response);
       toast.success('Event created successfully!');
       setShowModal(false);
       fetchEvents();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to create event');
+      console.error('❌ Failed to create event:', error);
+      console.error('Error details:', error.response?.data);
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.error ||
+                          Object.values(error.response?.data || {})[0] ||
+                          'Failed to create event';
+      toast.error(errorMessage);
     }
   };
 
@@ -141,7 +152,10 @@ export default function Calendar() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h2 className="font-semibold text-2xl">Calendar</h2>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            console.log('🔘 Schedule Event button clicked');
+            setShowModal(true);
+          }}
           className="px-4 py-2 bg-accentprimary text-white rounded-lg hover:bg-darkblue transition flex items-center gap-2"
         >
           <i className="fa-solid fa-plus"></i>
