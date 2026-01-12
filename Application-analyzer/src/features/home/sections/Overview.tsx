@@ -49,32 +49,32 @@ export default function Overview() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch jobs statistics
       const jobsData = await jobService.getStatistics();
-      
+
       // Fetch applications
       const applicationsData = await applicationService.getMyApplications();
       const applications = applicationsData.results || applicationsData || [];
-      
+
       // Fetch calendar events
       const eventsData = await calendarService.getEvents({
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
       });
       const events = eventsData.results || eventsData || [];
-      
+
       // Count interviews scheduled
       const interviewsScheduled = events.filter(
         (e: any) => e.event_type === 'interview' && new Date(e.date) >= new Date()
       ).length;
-      
+
       // Count application statuses
       const pending = applications.filter((a: any) => a.status === 'pending').length;
       const shortlisted = applications.filter((a: any) => a.status === 'shortlisted').length;
       const hired = applications.filter((a: any) => a.status === 'hired').length;
       const rejected = applications.filter((a: any) => a.status === 'rejected').length;
-      
+
       setStats({
         interviews_scheduled: interviewsScheduled,
         feedback_pending: applications.filter((a: any) => a.status === 'interview_scheduled').length,
@@ -94,12 +94,12 @@ export default function Overview() {
 
   return (
     <>
-      <div className="flex justify-between">
-        <h2 className="font-semibold text-xl indent-6">Overview</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="font-bold text-2xl indent-6 text-gray-800">Overview</h2>
         {userRole === 'recruiter' && (
-          <button 
+          <button
             onClick={() => navigate('/jobs/create')}
-            className="px-4 py-2 bg-accentprimary text-white rounded-lg flex gap-2 hover:bg-darkblue transition group"
+            className="px-5 py-2.5 bg-green-600 text-white rounded-xl flex gap-2 hover:bg-green-700 transition-all shadow-sm hover:shadow font-bold"
           >
             <span className="border-2 w-6 aspect-square rounded-full flex items-center justify-center">
               <i className="fa-solid fa-plus leading-3 block"></i>
@@ -108,8 +108,8 @@ export default function Overview() {
           </button>
         )}
       </div>
-      <div className="grid grid-cols-4 mt-5 gap-x-4 gap-y-10">
-        <button 
+      <div className="grid grid-cols-2 md:grid-cols-4 mt-8 gap-x-5 gap-y-12">
+        <button
           onClick={() => navigate('/calendar')}
           className="myovelement group text-left"
         >
@@ -128,7 +128,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >
@@ -148,7 +148,7 @@ export default function Overview() {
         </button>
 
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >
@@ -167,7 +167,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/jobs')}
           className="myovelement group text-left"
         >
@@ -186,7 +186,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >
@@ -205,7 +205,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >
@@ -224,7 +224,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >
@@ -243,7 +243,7 @@ export default function Overview() {
           <i className="fa-solid fa-angle-right absolute bottom-3 right-16 text-lg opacity-0 group-hover:opacity-100 group-hover:right-6 transition-all duration-300"></i>
         </button>
 
-        <button 
+        <button
           onClick={() => navigate('/candidates')}
           className="myovelement group text-left"
         >

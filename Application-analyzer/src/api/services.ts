@@ -77,6 +77,11 @@ export const jobService = {
     return response.data;
   },
 
+  // Alias for getJob - for better readability
+  getJobById: async (jobId: number) => {
+    return jobService.getJob(jobId);
+  },
+
   // Create job (recruiter only)
   createJob: async (jobData: {
     title: string;
@@ -124,6 +129,16 @@ export const applicationService = {
   // Get single application
   getApplication: async (applicationId: number) => {
     const response = await axios.get(`/access/applications/${applicationId}/`);
+    return response.data;
+  },
+
+  // Get all applications (with optional filters)
+  getAllApplications: async (params?: {
+    job_id?: number;
+    status?: string;
+    ordering?: string;
+  }) => {
+    const response = await axios.get('/access/applications/', { params });
     return response.data;
   },
 
@@ -255,7 +270,7 @@ export const aiResumeService = {
   analyzeResume: async (resumeFile: File) => {
     const formData = new FormData();
     formData.append('resume', resumeFile);
-    
+
     const response = await axios.post('/ai/analyze-resume/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -293,6 +308,7 @@ export interface Job {
   job_type: string;
   salary_range: string;
   deadline: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   recruiter: number;
@@ -302,10 +318,14 @@ export interface Application {
   id: number;
   job: number | Job;
   applicant: number;
+  first_name: string;
+  last_name: string;
+  email: string;
   resume: string;
   cover_letter?: string;
-  status: 'submitted' | 'under_review' | 'shortlisted' | 'rejected' | 'accepted';
+  status: 'pending' | 'submitted' | 'reviewing' | 'under_review' | 'shortlisted' | 'rejected' | 'accepted';
   applied_at: string;
+  submitted_at: string;
 }
 
 export interface JobSeekerProfile {

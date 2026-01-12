@@ -27,14 +27,14 @@ export default function Upcoming() {
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
       });
-      
+
       const allEvents = data.results || data || [];
-      const upcoming = allEvents.filter((e: CalendarEvent) => 
+      const upcoming = allEvents.filter((e: CalendarEvent) =>
         new Date(e.date) >= new Date()
-      ).sort((a: CalendarEvent, b: CalendarEvent) => 
+      ).sort((a: CalendarEvent, b: CalendarEvent) =>
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
-      
+
       setEvents(upcoming);
     } catch (error) {
       console.error('Error fetching upcoming events:', error);
@@ -66,7 +66,7 @@ export default function Upcoming() {
   const laterEvents = events.filter(e => !isToday(e.date) && !isTomorrow(e.date));
 
   const getEventColor = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'interview':
         return 'bg-liblue/35 text-lidarkblue border-lidarkblue/50 hover:bg-liblue hover:border-lidarkblue';
       case 'meeting':
@@ -77,12 +77,12 @@ export default function Upcoming() {
   };
 
   return (
-    <aside className="bg-lightgraybg px-2 text-sm h-svh rounded-lg">
-      <h2 className="flex font-semibold pl-2 mt-5 gap-2 text-base">
+    <aside className="bg-lightgraybg px-2 text-sm h-svh rounded-xl shadow-sm">
+      <h2 className="flex font-bold pl-2 mt-5 gap-2 text-base text-gray-800">
         Upcoming Meetings
-        <button 
+        <button
           onClick={() => navigate('/calendar')}
-          className="border-2 w-6 aspect-square rounded-full flex items-center justify-center border-accentprimary text-accentprimary hover:bg-accentprimary hover:text-lightgraybg"
+          className="border-2 w-6 aspect-square rounded-full flex items-center justify-center border-green-600 text-green-600 hover:bg-green-600 hover:text-lightgraybg transition-all"
         >
           <i className="fa-solid fa-plus w-full text-center"></i>
         </button>

@@ -1,7 +1,26 @@
 import pfp from "../assets/pfp.jpg"
-import { Outlet, NavLink, useLocation } from "react-router-dom"
+import { Outlet, NavLink, useLocation, useParams, Link } from "react-router-dom"
+import { useEffect, useState } from "react"
+import axios from "../../../api/axios"
 
 export default function CandidateLayout() {
+  const { candId } = useParams();
+  const [application, setApplication] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchApplication = async () => {
+      try {
+        const response = await axios.get(`/access/applications/${candId}/`);
+        setApplication(response.data);
+      } catch (error) {
+        console.error("Error fetching application:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchApplication();
+  }, [candId]);
 
   const curRoute = useLocation().pathname.split("/")
   const routes: { [key: string]: number[] } = {
@@ -10,7 +29,13 @@ export default function CandidateLayout() {
     "experience": [20 + 120 + 150, 75],
     "education": [20 + 120 + 150 + 152, 75],
   }
-  const routeKey = curRoute[3] || ""
+  const routeKey = curRoute[4] || "" // Adjusted index for nested route
+
+  if (loading) return <div className="p-10 text-center">Loading...</div>;
+
+  const candidateName = application?.applicant?.user
+    ? `${application.applicant.user.first_name} ${application.applicant.user.last_name}`
+    : "Candidate Profile";
 
   return (
     <div className="px-10 mt-3">
@@ -18,12 +43,12 @@ export default function CandidateLayout() {
         <p className="text-darkblue/50">Candidates</p>
         <p className="flex items-center gap-2 font-semibold">
           <i className="ml-1 fa-solid fa-chevron-right text-xl"></i>
-          Pascal Onuoha
+          {candidateName}
         </p>
-        <p className="ml-auto flex items-center gap-2 font-semibold">
+        <Link to="/candidates" className="ml-auto flex items-center gap-2 font-semibold hover:text-accentprimary transition-colors">
           <i className="fa-solid fa-arrow-left-long text-xl text-darkblue/50"></i>
           Go Back
-        </p>
+        </Link>
       </div>
 
       <div className="bg-lightgraybg px-8 py-3 flex justify-between items-center mt-2 rounded-lg">
@@ -34,10 +59,15 @@ export default function CandidateLayout() {
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex gap-12 items-center">
-                <p className="font-semibold text-xl">Pascal Onuoha</p>
-                <p className="px-9 py-1.5 leading-none bg-lightblue rounded-full font-semibold text-xs">Interview</p>
+                <p className="font-semibold text-xl">{candidateName}</p>
+                <p className="px-9 py-1.5 leading-none bg-lightblue rounded-full font-semibold text-xs capitalize">
+                  {(application?.status || "pending").replace("_", " ")}
+                </p>
               </div>
-              <p className="text-darkblue/50">pascalonuoha324@gmail.com <span className="ml-1">+2501234567</span></p>
+              <p className="text-darkblue/50">
+                {application?.applicant?.user?.email}
+                <span className="ml-1">{application?.applicant?.phone || "+2501234567"}</span>
+              </p>
             </div>
           </div>
           <div className="text-accentprimary flex items-center mt-4 px-3.5 gap-7">
@@ -74,8 +104,8 @@ export default function CandidateLayout() {
           <div style={{
             left: routes[routeKey][0] + "px",
             width: routes[routeKey][1] + "px"
-          }} 
-          className="h-0.5 rounded bg-accentsecondary absolute bottom-5 transition-all" />
+          }}
+            className="h-0.5 rounded bg-accentsecondary absolute bottom-5 transition-all" />
 
           <NavLink end to="" className={({ isActive }) => "p-4 transition-all w-28 " + (isActive ? "font-semibold" : "text-textdark/50 hover:font-semibold")}>
             General

@@ -1,121 +1,65 @@
-import { FormEvent } from "react";
-import { useOutletContext, useNavigate } from "react-router-dom";
+import { FormEvent, useState } from "react";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import axios from "../api/axios";
-import { useState } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import OTPDisplay from "../components/OTPDisplay";
 
 export default function Signup() {
   const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rePassword, setRePassword] = useState("");
-  const [role, setRole] = useState("job_seeker"); // Default role: job_seeker or recruiter
-  const [loading, setLoading] = useState(false);
-  const [showOTPDisplay, setShowOTPDisplay] = useState(false);
-  const [receivedOTP, setReceivedOTP] = useState("");
   const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "job_seeker"
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    // Basic validation
-    if (password !== rePassword) {
-      toast.error("Passwords don't match", {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
-      setLoading(false);
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match!");
       return;
     }
 
+    setLoading(true);
+
     try {
       const response = await axios.post('/auth/register/', {
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        password,
-        password_confirm: rePassword, // Backend requires password_confirm
-        role,
-        debug: true  // Request OTP in response for testing
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        password2: formData.confirmPassword,
+        role: formData.role
       });
 
-      // Backend returns: { message, email, otp_code }
-      // Show OTP if provided
-      if (response.data.otp_code) {
-        const otpCode = response.data.otp_code;
-        setReceivedOTP(otpCode);
-        setShowOTPDisplay(true);
-        
-        console.log('🔐 Registration OTP Code:', otpCode);
-        console.log(`
-╔════════════════════════════════════╗
-║  🔐 REGISTRATION OTP (FOR TESTING) ║
-╠════════════════════════════════════╣
-║                                    ║
-║         CODE: ${otpCode}           ║
-║         EMAIL: ${email}            ║
-║                                    ║
-║   Valid for 15 minutes             ║
-║   (Check server console too)       ║
-║                                    ║
-╚════════════════════════════════════╝
-        `);
-        
-        toast.info('Registration successful! OTP displayed for verification.', {
-          position: "top-right",
-          autoClose: 5000,
-        });
-      } else {
-        // Show success toast
-        toast.success('Registration successful! Check server console for OTP.', {
-          position: "top-right",
-          autoClose: 3000,
-        });
-      }
-      
-      // Show login redirect message
-      toast.info('You can now login with your credentials', {
+      toast.success('Account created successfully! Please login.', {
         position: "top-right",
-        autoClose: 5000,
+        autoClose: 3000,
       });
-      
-      // Redirect to login page after delay
-      setTimeout(() => navigate('/login'), 3000);
+
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (err: any) {
-      // Extract error message from response
-      let errorMessage = "Registration failed";
-      if (err.response?.data) {
-        // Handle different error formats
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.response.data.email) {
-          errorMessage = err.response.data.email[0]; // Email validation error
-        } else if (err.response.data.password) {
-          errorMessage = err.response.data.password[0]; // Password validation error
-        } else if (err.response.data.detail) {
-          errorMessage = err.response.data.detail;
-        }
-      }
+      const errorMessage = err.response?.data?.detail ||
+        err.response?.data?.email?.[0] ||
+        "Signup failed";
       toast.error(errorMessage, {
         position: "top-right",
         autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
       });
     } finally {
       setLoading(false);
@@ -131,115 +75,162 @@ export default function Signup() {
   }
 
   return (
-    <>
-      {/* Toast Container - renders the toast notifications */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      
-      <form className="mt-8 flex flex-col">
-        <label className="relative">
-          <input className="w-full peer"
-            type="text" placeholder="First Name" name="firstName" onChange={(e) => setFirstName(e.target.value)} />
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold opacity-100 peer-placeholder-shown:opacity-0 transition-opacity">First Name</span>
-        </label>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
+      <ToastContainer />
 
-        <label className="relative mt-3">
-          <input className="w-full peer"
-            type="text" placeholder="Last Name" name="lastName" onChange={(e) => setLastName(e.target.value)}/>
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold opacity-100 peer-placeholder-shown:opacity-0 transition-opacity">Last Name</span>
-        </label>
+      {/* Decorative corner elements */}
+      <div className="absolute top-0 left-0 w-64 h-64 corner-decoration opacity-40">
+        <div className="star-pattern w-full h-full transform rotate-45"></div>
+      </div>
+      <div className="absolute bottom-0 right-0 w-64 h-64 corner-decoration opacity-40">
+        <div className="star-pattern w-full h-full transform -rotate-45"></div>
+      </div>
 
-        <label className="relative mt-3">
-          <input className="w-full peer"
-            type="text" placeholder="Email" name="email" onChange={(e) => setEmail(e.target.value)} />
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold opacity-100 peer-placeholder-shown:opacity-0 transition-opacity">Email</span>
-        </label>
-
-        {/* Role Selection */}
-        <div className="mt-3">
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold">Role</span>
-          <div className="flex gap-4 mt-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="role"
-                value="job_seeker"
-                checked={role === "job_seeker"}
-                onChange={() => setRole("job_seeker")}
-                className="accent-accentsecondary"
-              />
-              Job Seeker
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="role"
-                value="recruiter"
-                checked={role === "recruiter"}
-                onChange={() => setRole("recruiter")}
-                className="accent-accentsecondary"
-              />
-              Recruiter
-            </label>
+      <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 max-w-md w-full relative z-10">
+        {/* Illustration area */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="w-32 h-32 bg-blue-100 rounded-2xl flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-20 h-20">
+              <circle cx="50" cy="35" r="15" fill="#4CAF50" opacity="0.3" />
+              <circle cx="50" cy="35" r="10" fill="#4CAF50" />
+              <rect x="35" y="55" width="30" height="35" rx="5" fill="#66BB6A" opacity="0.4" />
+              <rect x="30" y="50" width="10" height="15" fill="#81C784" />
+              <rect x="60" y="50" width="10" height="15" fill="#81C784" />
+            </svg>
           </div>
         </div>
 
-        <label className="relative mt-3">
-          <input className="w-full peer"
-            type="password" placeholder="Password" name="password" onChange={(e) => setPassword(e.target.value)} />
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold opacity-100 peer-placeholder-shown:opacity-0 transition-opacity">Password</span>
-          <i
-            className="fa-solid fa-eye-slash text-sm scale-x-110 text-accentprimary/60 absolute right-4 -translate-y-1/2 top-1/2 cursor-pointer select-none"
-            tabIndex={0}
-            onClick={togglePass}
-          ></i>
-        </label>
+        {/* Signup Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold">
+            <span className="text-gray-400 mr-2">
+              <Link to="/login" className="hover:text-green-600 transition">Login</Link>
+            </span>
+            <span className="text-green-600">Sign Up</span>
+          </h1>
+          <p className="text-xs text-green-600 mt-1 uppercase tracking-wide font-semibold">Admin</p>
+        </div>
 
-        <label className="relative mt-3">
-          <input className="w-full peer"
-            type="password" placeholder="Re-enter Password" name="rePassword" onChange={(e) => setRePassword(e.target.value)}/>
-          <span className="text-xs absolute left-3 -top-1.5 px-1 bg-graybg text- leading-none font-semibold opacity-100 peer-placeholder-shown:opacity-0 transition-opacity">Re-enter Password</span>
-          <i
-            className="fa-solid fa-eye-slash text-sm scale-x-110 text-accentprimary/60 absolute right-4 -translate-y-1/2 top-1/2 cursor-pointer select-none"
-            tabIndex={0}
-            onClick={togglePass}
-          ></i>
-        </label>
+        <form onSubmit={handleSignup} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {/* First Name */}
+            <div>
+              <input
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-      </form>
-      <button 
-        onClick={handleSignup} 
-        disabled={loading}
-        className={`w-full h-10 text-sm rounded-lg bg-accentsecondary text-white font-semibold mt-10 shadow-black/25 shadow-inner hover:shadow-transparent hover:scale-[1.01] transition-all ${loading ? 'opacity-70' : ''}`}
-      >
-        {loading ? 'Signing Up...' : 'Sign Up'}
-      </button>
-      <button className="w-full h-10 text-sm rounded-lg bg-accentprimary text-white font-semibold mt-4 shadow-black/25 shadow-inner hover:shadow-transparent hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
-        Sign Up with Google <i className="text-xl fa-brands fa-google"></i>
-      </button>
-      
-      {/* OTP Display Modal */}
-      {showOTPDisplay && receivedOTP && (
-        <OTPDisplay
-          otpCode={receivedOTP}
-          email={email}
-          purpose="Email Verification"
-          onClose={() => {
-            setShowOTPDisplay(false);
-            // Redirect to login after closing OTP display
-            setTimeout(() => navigate('/login'), 1000);
-          }}
-        />
-      )}
-    </>
+            {/* Last Name */}
+            <div>
+              <input
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <input
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Role Selection */}
+          <div>
+            <select
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition bg-white"
+              name="role"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              required
+            >
+              <option value="job_seeker">Job Seeker</option>
+              <option value="recruiter">Recruiter / Admin</option>
+            </select>
+          </div>
+
+          {/* Password */}
+          <div className="relative">
+            <input
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition pr-10"
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+            <i
+              className="fa-solid fa-eye-slash text-sm text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer hover:text-gray-600"
+              onClick={togglePass}
+            ></i>
+          </div>
+
+          {/* Re-enter Password */}
+          <div className="relative">
+            <input
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition pr-10"
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Sign Up Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-orange w-full mt-6"
+          >
+            {loading ? (
+              <>
+                <i className="fa-solid fa-spinner loading-spinner mr-2"></i>
+                Creating account...
+              </>
+            ) : (
+              'Sign Up'
+            )}
+          </button>
+
+          {/* Google Signup Button */}
+          <button
+            type="button"
+            className="btn-teal w-full flex items-center justify-center gap-3"
+          >
+            Sign Up with Google
+            <i className="fab fa-google text-xl"></i>
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="mt-8 text-center text-xs text-gray-500">
+          <p className="mb-1">
+            <a href="#" className="hover:text-green-600 transition">Release Notes</a>
+          </p>
+          <p>Copyright © 2023 ThinkGreen Afrika</p>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -38,9 +38,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactElement }) {
   const [user, setUser] = useState<User | null>(null);
-  const [authTokens, setAuthTokens] = useState<AuthTokens | null>(
-    JSON.parse(localStorage.getItem("authTokens") || "null")
-  );
+  const [authTokens, setAuthTokens] = useState<AuthTokens | null>(() => {
+    const tokens = localStorage.getItem("authTokens");
+    if (tokens && tokens !== "undefined") {
+      try {
+        return JSON.parse(tokens);
+      } catch (e) {
+        console.error("Error parsing authTokens:", e);
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   // Removed useNavigate from here
 
@@ -114,10 +123,10 @@ export function AuthProvider({ children }: { children: ReactElement }) {
       toast.success("Registration successful!");
       return true;
     } catch (err: any) {
-      const errorMsg = err.response?.data?.email?.[0] || 
-                      err.response?.data?.password?.[0] || 
-                      err.response?.data?.detail || 
-                      "Registration failed";
+      const errorMsg = err.response?.data?.email?.[0] ||
+        err.response?.data?.password?.[0] ||
+        err.response?.data?.detail ||
+        "Registration failed";
       toast.error(errorMsg);
       return false;
     } finally {

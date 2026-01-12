@@ -15,27 +15,27 @@ export default function RequireAttention() {
 
   return (
     <>
-      <h2 className="font-semibold text-xl indent-6 mt-8">Require Attention</h2>
+      <h2 className="font-bold text-2xl indent-6 mt-10 text-gray-800">Require Attention</h2>
       <div className="*:px-2 px-4 py-1.5 flex gap-2 mt-4 relative">
         <div style={{ left: dists[selected], width: selected === 0 ? 32 : 85 }}
-          className="absolute bottom-0 w-8 h-0.5 bg-accentsecondary rounded transition-all" />
-        <button onClick={() => setSelected(0)} className={selected === 0 ? "font-semibold" : "text-textdark/50"}>
+          className="absolute bottom-0 w-8 h-0.5 bg-green-600 rounded transition-all" />
+        <button onClick={() => setSelected(0)} className={selected === 0 ? "font-bold text-gray-800" : "text-textdark/50 hover:text-gray-700 transition-colors"}>
           Jobs
         </button>
-        <button onClick={() => setSelected(1)} className={selected === 1 ? "font-semibold" : "text-textdark/50"}>
+        <button onClick={() => setSelected(1)} className={selected === 1 ? "font-bold text-gray-800" : "text-textdark/50 hover:text-gray-700 transition-colors"}>
           Onboarding
         </button>
-        <button onClick={() => setSelected(2)} className={selected === 2 ? "font-semibold" : "text-textdark/50"}>
+        <button onClick={() => setSelected(2)} className={selected === 2 ? "font-bold text-gray-800" : "text-textdark/50 hover:text-gray-700 transition-colors"}>
           Candidates
         </button>
       </div>
 
       {selected === 0 ?
-      <RAJobs />
-      : selected === 1 ?
-      <RAOnboard /> 
-      : <RACands />}
-      
+        <RAJobs />
+        : selected === 1 ?
+          <RAOnboard />
+          : <RACands />}
+
     </>
   )
 }

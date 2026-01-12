@@ -3,15 +3,30 @@
 @tailwind utilities;
 
 @layer components {
+  /* ===== POSITIONING UTILITIES ===== */
   .scenter {
     @apply fixed top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2
   }
 
+  /* ===== SHADOWS ===== */
   .signshadow {
     box-shadow: 16px 16px 40px 0px #BBC3CE99,
       -16px -16px 40px 0px #FDFFFFCC;
   }
 
+  .glow {
+    filter: drop-shadow(-10px -10px 20px #FFFFFF);
+  }
+
+  .card-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-shadow-lg {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ===== FORM INPUTS ===== */
   [type='text'],
   input:where(:not([type])),
   [type='email'],
@@ -28,24 +43,90 @@
   [multiple],
   textarea,
   select {
-    @apply py-2 px-3 bg-lightblue border border-accentprimary placeholder:text-darkblue font-semibold placeholder:font-normal placeholder:text-sm rounded-lg active:ring-accentprimary outline-none
+    @apply py-2 px-3 bg-lightblue border border-accentprimary placeholder:text-darkblue font-semibold placeholder:font-normal placeholder:text-sm rounded-lg active:ring-accentprimary outline-none transition-all
   }
 
   .checkmark {
-
     @apply border-2 ring-1 ring-accentprimary border-graybg rounded;
   }
 
-  .glow {
-    filter: drop-shadow(-10px -10px 20px #FFFFFF);
+  /* ===== CARD STYLES ===== */
+  .modern-card {
+    @apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300;
   }
 
+  .stat-card {
+    @apply bg-white rounded-2xl p-6 shadow-sm border-2 border-gray-100 hover:border-green-200 hover:shadow-md transition-all duration-300;
+  }
+
+  /* ===== BUTTON VARIANTS ===== */
+  .btn-primary {
+    @apply px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 active:scale-95 transition-all duration-200;
+  }
+
+  .btn-success {
+    @apply px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 active:scale-95 transition-all duration-200 shadow-sm;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 active:scale-95 transition-all duration-200 shadow-sm;
+  }
+
+  .btn-orange {
+    @apply px-6 py-3 bg-orange-400 text-white font-bold rounded-lg hover:bg-orange-500 active:scale-95 transition-all duration-200 shadow-md;
+  }
+
+  .btn-teal {
+    @apply px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 active:scale-95 transition-all duration-200 shadow-md;
+  }
+
+  /* ===== STATUS BADGES ===== */
+  .badge {
+    @apply px-3 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full;
+  }
+
+  .badge-pending {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  .badge-under-review {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-shortlisted {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  .badge-interview {
+    @apply badge bg-purple-100 text-purple-700;
+  }
+
+  .badge-hired {
+    @apply badge bg-green-500 text-white;
+  }
+
+  .badge-rejected {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  .badge-blue {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  /* ===== LAYOUT HELPERS ===== */
   .prfwindow {
     width: calc(100% - 36px)
   }
 
+  .main-bg {
+    @apply bg-[#F5F6FA];
+  }
 
-
+  /* ===== OVERVIEW ELEMENTS ===== */
   .myovelement {
     @apply bg-lightgraybg ml-5 rounded-lg relative px-5 pb-5 hover:bg-accentprimary/15 transition duration-300;
   }
@@ -54,7 +135,7 @@
     @apply absolute -left-5 -top-5 bg-lightgraybg w-20 aspect-[13/14] rounded-[30px] border border-textdark/50 flex items-center justify-center group-hover:w-[110px] group-hover:bg-accentprimary transition-all duration-300;
   }
 
-
+  /* ===== TABLE GRIDS ===== */
   .jobtable {
     display: grid;
     grid-template-columns: 250px repeat(6, 1fr);
@@ -63,14 +144,41 @@
   .onboardtable {
     display: grid;
     grid-template-columns: 250px repeat(5, 1fr) 50px;
-    
   }
+
   .candtable {
     display: grid;
     grid-template-columns: 275px repeat(4, 1fr);
-    
   }
 
+  /* ===== LOADING ANIMATIONS ===== */
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ===== FADE ANIMATIONS ===== */
   @keyframes fadein {
     from {
       @apply bg-graybg
@@ -79,6 +187,7 @@
       @apply bg-transparent hidden
     }
   }
+
   @keyframes fadeout {
     from {
       @apply bg-transparent hidden
@@ -90,46 +199,80 @@
 
   .fadein {
     @apply absolute w-full h-full z-20;
-
     animation: fadein 1s ease;
     animation-fill-mode: forwards;
   }
+
   .fadeout {
     @apply absolute w-full h-full z-20;
-
     animation: fadeout 1s ease;
     animation-fill-mode: forwards;
   }
 
+  /* ===== SLIDE ANIMATIONS ===== */
   @keyframes slidein {
     from {
-      /* @apply translate-y-[800px]; */
       transform: translateY(800px)
     }
     to {
-      /* @apply translate-y-0; */
       transform: translateY(0)
     }
   }
+
   @keyframes slideout {
     from {
-      /* @apply translate-y-0; */
       transform: translateY(0)
     }
     to {
-      /* @apply translate-y-[800px]; */
       transform: translateY(800px)
     }
-
   }
 
   .slidein {
     animation: slidein .7s ease;
     animation-fill-mode: forwards;
   }
+
   .slideout {
     animation: slideout .7s ease;
     animation-fill-mode: forwards;
   }
 
+  /* ===== HOVER EFFECTS ===== */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  /* ===== DECORATIVE ELEMENTS ===== */
+  .corner-decoration {
+    @apply absolute pointer-events-none;
+  }
+
+  .star-pattern {
+    background-image: radial-gradient(circle, #fbbf24 2px, transparent 2px);
+    background-size: 20px 20px;
+  }
+
+  /* ===== ILLUSTRATION CONTAINERS ===== */
+  .illustration-wrapper {
+    @apply flex items-center justify-center p-4;
+  }
+
+  /* ===== RESPONSIVE TABLE ===== */
+  .responsive-table {
+    @apply overflow-x-auto;
+  }
+
+  .responsive-table table {
+    @apply min-w-full;
+  }
+
+  /* ===== TRANSITIONS ===== */
+  .smooth-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
 }

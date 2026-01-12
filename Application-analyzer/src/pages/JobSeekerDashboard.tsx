@@ -12,7 +12,7 @@ export default function JobSeekerDashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch applications
         const appsData = await applicationService.getMyApplications({ ordering: '-applied_at' });
         const appsList = appsData.results || appsData;
@@ -48,8 +48,15 @@ export default function JobSeekerDashboard() {
 
   // Get user info from localStorage
   const userDataStr = localStorage.getItem('user');
-  const userData = userDataStr ? JSON.parse(userDataStr) : null;
-  
+  let userData = null;
+  if (userDataStr && userDataStr !== "undefined") {
+    try {
+      userData = JSON.parse(userDataStr);
+    } catch (e) {
+      console.error("Error parsing user data:", e);
+    }
+  }
+
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName || userData?.first_name || 'U';
     const last = lastName || userData?.last_name || 'S';
@@ -58,10 +65,10 @@ export default function JobSeekerDashboard() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         minHeight: '100vh',
         background: '#f3f6fb'
       }}>
@@ -74,16 +81,16 @@ export default function JobSeekerDashboard() {
 
   if (error) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         minHeight: '100vh',
         background: '#f3f6fb'
       }}>
-        <div style={{ 
-          background: '#fff', 
-          padding: 32, 
+        <div style={{
+          background: '#fff',
+          padding: 32,
           borderRadius: 8,
           maxWidth: 400
         }}>
@@ -99,51 +106,31 @@ export default function JobSeekerDashboard() {
   return (
     <div style={{ background: "#f3f6fb", minHeight: "100vh", paddingBottom: 40 }}>
       {/* Main content */}
-      <div style={{ padding: "32px 24px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ fontWeight: 600, fontSize: 24, marginBottom: 24, color: '#1a2e46' }}>
+      <div className="p-6 lg:p-8 max-w-[1920px] mx-auto">
+        <div className="text-2xl font-bold mb-6 text-gray-800">
           Dashboard Overview
         </div>
 
         {/* Statistics Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 24, marginBottom: 32 }}>
-          <div style={{
-            background: "#fff",
-            borderRadius: 8,
-            padding: 24,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Total Applications</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#1a2e46" }}>{stats.totalApplications}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+            <div className="text-sm text-gray-600 mb-2">Total Applications</div>
+            <div className="text-3xl font-bold text-gray-800">{stats.totalApplications}</div>
           </div>
-          
-          <div style={{
-            background: "#fff",
-            borderRadius: 8,
-            padding: 24,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Under Review</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#ff9800" }}>{stats.underReview}</div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+            <div className="text-sm text-gray-600 mb-2">Under Review</div>
+            <div className="text-3xl font-bold text-orange-500">{stats.underReview}</div>
           </div>
-          
-          <div style={{
-            background: "#fff",
-            borderRadius: 8,
-            padding: 24,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Shortlisted</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#2196f3" }}>{stats.shortlisted}</div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+            <div className="text-sm text-gray-600 mb-2">Shortlisted</div>
+            <div className="text-3xl font-bold text-blue-500">{stats.shortlisted}</div>
           </div>
-          
-          <div style={{
-            background: "#fff",
-            borderRadius: 8,
-            padding: 24,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Accepted</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#4caf50" }}>{stats.accepted}</div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+            <div className="text-sm text-gray-600 mb-2">Accepted</div>
+            <div className="text-3xl font-bold text-green-500">{stats.accepted}</div>
           </div>
         </div>
 
@@ -198,7 +185,7 @@ export default function JobSeekerDashboard() {
           <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 24, color: '#1a2e46' }}>
             Recent Applications
           </div>
-          
+
           {applications.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
               <div style={{ fontSize: 18, marginBottom: 8 }}>No applications yet</div>
@@ -244,8 +231,8 @@ export default function JobSeekerDashboard() {
                     </div>
                     <div style={{
                       background: app.status === 'accepted' ? '#4caf50' :
-                                 app.status === 'shortlisted' ? '#2196f3' :
-                                 app.status === 'under_review' ? '#ff9800' : '#999',
+                        app.status === 'shortlisted' ? '#2196f3' :
+                          app.status === 'under_review' ? '#ff9800' : '#999',
                       color: '#fff',
                       padding: '6px 16px',
                       borderRadius: 20,

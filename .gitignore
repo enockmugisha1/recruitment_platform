@@ -19,10 +19,15 @@ venv/
 .env/
 
 # Environment-specific files
-*.env
+.env
+.env.local
 *.local
 *.development
 *.production
+
+# Keep example files (don't ignore)
+!.env.example
+!.env.production
 
 # IDE and editor specific files
 .vscode/

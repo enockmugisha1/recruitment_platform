@@ -41,11 +41,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('accessToken');
       const storedUser = localStorage.getItem('user');
-      
-      if (storedToken && storedUser) {
-        setAccessToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        
+
+      if (storedToken && storedUser && storedUser !== "undefined") {
+        try {
+          setAccessToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error("Error parsing stored user:", e);
+          localStorage.removeItem('user');
+        }
+
         // Verify token is still valid
         try {
           await axios.get('/auth/verify/');
@@ -56,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setLoading(false);
     };
-    
+
     initializeAuth();
   }, []);
 
@@ -64,10 +69,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) throw new Error('No refresh token');
-      
+
       const response = await axios.post('/auth/refresh/', { refresh: refreshToken });
       const { access, user } = response.data;
-      
+
       localStorage.setItem('accessToken', access);
       setAccessToken(access);
       setUser(user);
@@ -118,11 +123,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const response = await axios.post('/auth/login/', { email, password });
       const { access, refresh, user } = response.data;
-      
+
       localStorage.setItem('accessToken', access);
       localStorage.setItem('refreshToken', refresh);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       setAccessToken(access);
       setUser(user);
       toast.success('Login successful!');
@@ -145,11 +150,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       const response = await axios.post('/auth/register/', userData);
       const { access, refresh, user } = response.data;
-      
+
       localStorage.setItem('accessToken', access);
       localStorage.setItem('refreshToken', refresh);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       setAccessToken(access);
       setUser(user);
       toast.success('Registration successful!');
