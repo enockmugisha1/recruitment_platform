@@ -191,10 +191,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
+    "http://127.0.0.1:5173",
+    "http://192.168.1.64:5173",
+    "http://0.0.0.0:5173",
     "https://mohamdah-aa-frontend.netlify.app",
     "https://recruitment-platform-faa8.onrender.com",
 ]
 
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
