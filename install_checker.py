@@ -40,6 +40,6 @@ if failure:
     print("\nFailed to install packages:")
     for pkg, error in failure.items():
         print(f"\n[PACKAGE]: {pkg}")
-        # printing only the last fews lines of the error message for better readability
+        # printing only the last few lines of the error message for better readability
         error_lines = error.strip().split('\n')
-        print(f"[ERROR]: {error_lines[-2] if error_lines else 'Unkwown error'}")
+        print(f"[ERROR]: {error_lines[-2] if error_lines else 'Unknown error'}")
