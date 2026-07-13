@@ -4,24 +4,72 @@ import axios from "../api/axios";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+type Role = "job_seeker" | "recruiter";
+
+const ROLE_TABS: { key: Role; label: string }[] = [
+  { key: "job_seeker", label: "Job Seeker" },
+  { key: "recruiter", label: "Recruiter" },
+];
+
+const ROLE_COPY: Record<
+  Role,
+  {
+    emailPlaceholder: string;
+    emailType: string;
+    footerPromptLabel: string;
+    footerLinkText: string;
+    footerLinkTo: string;
+  }
+> = {
+  job_seeker: {
+    emailPlaceholder: "Email Address",
+    emailType: "email",
+    footerPromptLabel: "New here?",
+    footerLinkText: "Create an Account",
+    footerLinkTo: "/signup",
+  },
+  recruiter: {
+    emailPlaceholder: "Work Email Address",
+    emailType: "email",
+    footerPromptLabel: "Hiring?",
+    footerLinkText: "Register as an Employer / Post a Job",
+    footerLinkTo: "/signup?role=recruiter",
+  },
+};
+
 export default function Login() {
   const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
+  const navigate = useNavigate();
+
+  const [activeRole, setActiveRole] = useState<Role>("job_seeker");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"admin" | "user">("admin");
-  const navigate = useNavigate();
+
+  const copy = ROLE_COPY[activeRole];
+
+  function switchRole(role: Role) {
+    if (role === activeRole) return;
+    setActiveRole(role);
+    // Clear form state between tabs so nothing leaks across roles
+    setEmail("");
+    setPassword("");
+    setRememberMe(false);
+  }
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await axios.post('/auth/login/', {
+      const payload: Record<string, string> = {
         email,
-        password
-      });
+        password,
+        role: activeRole,
+      };
+
+      const response = await axios.post('/auth/login/', payload);
 
       const { access, refresh, user } = response.data;
 
@@ -71,60 +119,44 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="pt-6 sm:pt-8 pb-2">
       <ToastContainer />
 
-      {/* Decorative corner elements */}
-      <div className="absolute top-0 left-0 w-64 h-64 corner-decoration opacity-40">
-        <div className="star-pattern w-full h-full transform rotate-45"></div>
-      </div>
-      <div className="absolute bottom-0 right-0 w-64 h-64 corner-decoration opacity-40">
-        <div className="star-pattern w-full h-full transform -rotate-45"></div>
-      </div>
-
-      <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 lg:p-16 max-w-md md:max-w-lg lg:max-w-xl w-full relative z-10 transition-all duration-300">
-        {/* Tab Switcher */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex gap-1 text-lg font-bold">
+      {/* Role Tabs — Job Seeker / Recruiter. The Login/Sign Up switch above is handled by AuthLayout's nav. */}
+      <div className="flex justify-center mb-6 sm:mb-8">
+        <div
+          role="tablist"
+          aria-label="Login role"
+          className="inline-flex w-full max-w-sm gap-1 rounded-xl bg-gray-100 p-1"
+        >
+          {ROLE_TABS.map((tab) => (
             <button
-              onClick={() => setActiveTab("admin")}
-              className={`px-4 py-1 transition-all ${activeTab === "admin"
-                ? "text-green-600 border-b-2 border-green-600"
-                : "text-gray-400"
-                }`}
+              key={tab.key}
+              role="tab"
+              aria-selected={activeRole === tab.key}
+              onClick={() => switchRole(tab.key)}
+              type="button"
+              className={`flex-1 rounded-lg px-3 py-2 text-sm sm:text-base font-semibold transition-all duration-200 ${
+                activeRole === tab.key
+                  ? "bg-white text-green-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
-              Admin
+              {tab.label}
             </button>
-            <span className="text-gray-300">/</span>
-            <button
-              onClick={() => setActiveTab("user")}
-              className={`px-4 py-1 transition-all ${activeTab === "user"
-                ? "text-green-600 border-b-2 border-green-600"
-                : "text-gray-400"
-                }`}
-            >
-              Login
-            </button>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Login Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold">
-            <span className="text-green-600">Login</span>
-            <span className="text-gray-400 ml-2">
-              <Link to="/signup" className="hover:text-green-600 transition">Sign Up</Link>
-            </span>
-          </h1>
-        </div>
-
-        <form className="space-y-5">
-          {/* Username/Email Field */}
+      {/* Dynamic form area — only this block changes between tabs */}
+      <div key={activeRole} className="animate-fadein">
+        <form className="space-y-4 sm:space-y-5" onSubmit={handleLogin}>
+          {/* Email / Work Email field */}
           <div className="relative">
             <input
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
-              type="email"
-              placeholder="Username"
+              type={copy.emailType}
+              placeholder={copy.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -148,7 +180,7 @@ export default function Login() {
           </div>
 
           {/* Remember Me & Forgot Password */}
-          <div className="flex justify-between items-center text-sm">
+          <div className="flex flex-wrap gap-2 justify-between items-center text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -168,7 +200,7 @@ export default function Login() {
 
           {/* Login Button */}
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="btn-orange w-full"
           >
@@ -192,13 +224,16 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-xs text-gray-500">
-          <p className="mb-1">
-            <a href="#" className="hover:text-green-600 transition">Release Notes</a>
-          </p>
-          <p>Copyright © 2023 ThinkGreen Afrika</p>
-        </div>
+        {/* Role-specific sign-up / register prompt */}
+        <p className="text-center text-sm text-gray-600 mt-6">
+          {copy.footerPromptLabel}{" "}
+          <Link
+            to={copy.footerLinkTo}
+            className="text-green-600 font-semibold hover:underline"
+          >
+            {copy.footerLinkText}
+          </Link>
+        </p>
       </div>
     </div>
   );
