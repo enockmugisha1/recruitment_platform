@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactElement }) {
     try {
       setLoading(true);
       const response = await axios.post(
-        "token/",
+        "auth/login",
         JSON.stringify({ email, password }),
         {
           headers: { "Content-Type": "application/json" },
