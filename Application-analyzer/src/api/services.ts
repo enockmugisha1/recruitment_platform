@@ -6,7 +6,7 @@ export const authService = {
   register: async (userData: {
     email: string;
     password: string;
-    password2: string;
+    password_confirm: string;
     first_name: string;
     last_name: string;
     role: 'job_seeker' | 'recruiter';
