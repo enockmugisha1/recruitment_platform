@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { applicationService, profileService, Application, JobSeekerProfile, Job } from "../api/services";
 
 export default function JobSeekerDashboard() {
+  console.log("Dashboard mounted");
   const [applications, setApplications] = useState<Application[]>([]);
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [loading, setLoading] = useState(true);
