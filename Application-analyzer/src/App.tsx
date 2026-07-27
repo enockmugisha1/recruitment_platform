@@ -22,8 +22,12 @@ import JobSeekerDashboard from './pages/JobSeekerDashboard'
 import Profile from './pages/Profile'
 import BrowseJobs from './pages/BrowseJobs'
 import MyApplications from './pages/MyApplications'
+import SavedJobs from './pages/SavedJobs'
+import Settings from './pages/Settings'
+import Help from './pages/Help'
 import AdminLayout from './layouts/AdminLayout'
 import JobSeekerLayout from './layouts/JobSeekerLayout'
+import SharedLayout from './layouts/SharedLayout'
 
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -52,7 +56,14 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path='/dashboard' element={<JobSeekerDashboard />} />
       <Route path='/browse-jobs' element={<BrowseJobs />} />
       <Route path='/my-applications' element={<MyApplications />} />
+      <Route path='/saved-jobs' element={<SavedJobs />} />
       <Route path='/profile' element={<Profile />} />
+    </Route>
+
+    {/* Shared Routes — reachable by either role, chrome adapts to whoever is logged in */}
+    <Route element={<SharedLayout />}>
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/help" element={<Help />} />
     </Route>
 
     {/* Auth Routes */}
