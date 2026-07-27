@@ -43,7 +43,7 @@ export default function Signup() {
         last_name: formData.lastName,
         email: formData.email,
         password: formData.password,
-        password2: formData.confirmPassword,
+        password_confirm: formData.confirmPassword,
         role: formData.role
       });
 
@@ -56,9 +56,13 @@ export default function Signup() {
         navigate('/login');
       }, 2000);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail ||
-        err.response?.data?.email?.[0] ||
-        "Signup failed";
+      const data = err.response?.data;
+      const errorMessage = data?.detail
+        || data?.email?.[0]
+        || data?.password_confirm?.[0]
+        || data?.role?.[0]
+        || Object.values(data || {})[0]?.[0]
+        || "Signup failed";
       toast.error(errorMessage, {
         position: "top-right",
         autoClose: 5000,

@@ -70,11 +70,20 @@ export default function Login() {
       };
 
       const response = await axios.post('/auth/login/', payload);
+      const { access, refresh, user: userFromServer } = response.data;
 
-      const { access, refresh, user } = response.data;
+      // The backend's response isn't reliably including a role on the user
+      // object. Rather than depend on that, fall back to the role the
+      // person explicitly chose via the tabs above (activeRole) — it's
+      // already part of the payload we just sent, so it's just as
+      // trustworthy as anything the server would echo back.
+      const user = {
+        ...userFromServer,
+        role: userFromServer?.role || activeRole,
+      };
 
       localStorage.setItem('accessToken', access);
-      localStorage.setItem('email', user?.email || email);
+      localStorage.setItem('email', user.email || email);
       localStorage.setItem('user', JSON.stringify(user));
 
       if (rememberMe) {
@@ -91,14 +100,8 @@ export default function Login() {
       handleAuth(e);
 
       setTimeout(() => {
-        if (user?.role === 'recruiter') {
-          navigate('/', { replace: true });
-        } else if (user?.role === 'job_seeker') {
-          navigate('/dashboard', { replace: true });
-        } else {
-          navigate('/', { replace: true });
-        }
-      }, 1500);
+        navigate(user.role === 'recruiter' ? '/' : '/dashboard', { replace: true });
+      }, 700);
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || "Login failed";
       toast.error(errorMessage, {

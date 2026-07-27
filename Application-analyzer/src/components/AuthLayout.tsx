@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom"
+import { Outlet, NavLink, useLocation } from "react-router-dom"
 import foldersImg from "../assets/appfolders.png"
 import { FormEvent, useEffect, useState } from "react";
 
@@ -8,7 +8,6 @@ export default function AuthLayout() {
 
   const [slideOut, setSlideOut] = useState(false)
   const [slideIn, setSlideIn] = useState(false)
-  const navigate = useNavigate()
 
 
   function handleAuth(e: FormEvent) {
@@ -18,9 +17,13 @@ export default function AuthLayout() {
 
     setSlideOut(true)
     document.body.style.overflowY = "hidden"
+    // NOTE: navigation is intentionally NOT done here. It used to hardcode
+    // navigate('/') which raced with the role-aware redirect in Login.tsx,
+    // causing job seekers to briefly flash onto the recruiter dashboard
+    // before being bounced to /dashboard. The caller (Login.tsx) owns
+    // navigation because it's the one that knows the logged-in user's role.
     setTimeout(() => {
       document.body.style.overflowY = "auto"
-      navigate('/')
     }, 700)
   }
 

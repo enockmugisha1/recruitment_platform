@@ -2,7 +2,8 @@ import { useNavigate, Outlet, Link } from "react-router-dom";
 import pfpImg from "../assets/pfp.png";
 import { useEffect, useState } from "react";
 import AdminSidebar from "../components/AdminSidebar";
-import { jwtDecode } from "jwt-decode";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { clearSession } from "../utils/auth";
 
 export default function AdminLayout() {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -11,39 +12,17 @@ export default function AdminLayout() {
     const [email, setEmail] = useState<string | undefined>(undefined);
     const navigate = useNavigate();
 
-    const token = localStorage.getItem("accessToken");
-    const mail = localStorage.getItem("email");
-    const userDataStr = localStorage.getItem("user");
+    // Only recruiters may render this layout. Nothing below renders until
+    // the check resolves, so there's no flash of recruiter content for
+    // other roles (this used to happen because of a stale navigate('/')
+    // call elsewhere racing the role check).
+    const { status, user } = useRoleGuard("recruiter", "/dashboard");
 
     useEffect(() => {
-        if (mail) {
-            setEmail(mail);
+        if (user?.email) {
+            setEmail(user.email);
         }
-        if (token) {
-            const decoded: any = jwtDecode(token);
-            console.log(decoded);
-        }
-
-        // Check authentication
-        if (!token) {
-            navigate("/login", { replace: true });
-            return;
-        }
-
-        // Check role - only recruiters can access admin layout
-        if (userDataStr && userDataStr !== "undefined") {
-            try {
-                const userData = JSON.parse(userDataStr);
-                if (userData && userData.role !== "recruiter") {
-                    navigate("/dashboard", { replace: true });
-                }
-            } catch (e) {
-                console.error("Error parsing user data:", e);
-                localStorage.removeItem("user");
-                navigate("/login", { replace: true });
-            }
-        }
-    }, [token, userDataStr, navigate]);
+    }, [user]);
 
     const [animate, setAnimate] = useState(false);
     useEffect(() => {
@@ -62,12 +41,19 @@ export default function AdminLayout() {
     function handleLogout() {
         setFadeOut(true);
         localStorage.setItem("from", "logout");
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
-        localStorage.removeItem("email");
+        clearSession();
 
         setTimeout(() => navigate("/login"), 1000);
+    }
+
+    // Don't render any recruiter content (or the sidebar/header) until
+    // we've confirmed this user is actually a recruiter.
+    if (status === "checking") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <i className="fa-solid fa-spinner loading-spinner text-2xl text-green-600"></i>
+            </div>
+        );
     }
 
     // Mock notifications

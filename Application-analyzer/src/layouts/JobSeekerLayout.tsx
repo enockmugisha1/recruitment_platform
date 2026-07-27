@@ -2,7 +2,8 @@ import { useNavigate, Outlet, Link } from "react-router-dom";
 import pfpImg from "../assets/pfp.png";
 import { useEffect, useState } from "react";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
-import { jwtDecode } from "jwt-decode";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { clearSession } from "../utils/auth";
 
 export default function JobSeekerLayout() {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -11,39 +12,16 @@ export default function JobSeekerLayout() {
     const [email, setEmail] = useState<string | undefined>(undefined);
     const navigate = useNavigate();
 
-    const token = localStorage.getItem("accessToken");
-    const mail = localStorage.getItem("email");
-    const userDataStr = localStorage.getItem("user");
+    // Only job seekers may render this layout. Nothing below renders until
+    // the check resolves, so there's no flash of recruiter content before
+    // bouncing here (that flash was the actual bug being reported).
+    const { status, user } = useRoleGuard("job_seeker", "/");
 
     useEffect(() => {
-        if (mail) {
-            setEmail(mail);
+        if (user?.email) {
+            setEmail(user.email);
         }
-        if (token) {
-            const decoded: any = jwtDecode(token);
-            console.log(decoded);
-        }
-
-        // Check authentication
-        if (!token) {
-            navigate("/login", { replace: true });
-            return;
-        }
-
-        // Check role - only job seekers can access job seeker layout
-        if (userDataStr && userDataStr !== "undefined") {
-            try {
-                const userData = JSON.parse(userDataStr);
-                if (userData && userData.role !== "job_seeker") {
-                    navigate("/", { replace: true });
-                }
-            } catch (e) {
-                console.error("Error parsing user data:", e);
-                localStorage.removeItem("user");
-                navigate("/login", { replace: true });
-            }
-        }
-    }, [token, userDataStr, navigate]);
+    }, [user]);
 
     const [animate, setAnimate] = useState(false);
     useEffect(() => {
@@ -62,12 +40,19 @@ export default function JobSeekerLayout() {
     function handleLogout() {
         setFadeOut(true);
         localStorage.setItem("from", "logout");
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
-        localStorage.removeItem("email");
+        clearSession();
 
         setTimeout(() => navigate("/login"), 1000);
+    }
+
+    // Don't render any job seeker content (or the sidebar/header) until
+    // we've confirmed this user is actually a job seeker.
+    if (status === "checking") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <i className="fa-solid fa-spinner loading-spinner text-2xl text-emerald-600"></i>
+            </div>
+        );
     }
 
     // Mock notifications for job seekers
