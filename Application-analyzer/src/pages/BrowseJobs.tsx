@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { jobService, applicationService, Job } from '../api/services'
 import { toast } from 'react-toastify'
+import { getSavedJobIds, toggleSavedJob } from '../utils/savedJobs'
 
 export default function BrowseJobs() {
     const [jobs, setJobs] = useState<Job[]>([])
@@ -8,6 +9,13 @@ export default function BrowseJobs() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedJobType, setSelectedJobType] = useState('all')
     const [applyingToJob, setApplyingToJob] = useState<number | null>(null)
+    const [savedIds, setSavedIds] = useState<number[]>(() => getSavedJobIds())
+
+    const handleToggleSave = (jobId: number) => {
+        const nowSaved = toggleSavedJob(jobId)
+        setSavedIds(getSavedJobIds())
+        toast.success(nowSaved ? 'Job saved' : 'Job removed from saved jobs')
+    }
 
     useEffect(() => {
         fetchJobs()
@@ -129,7 +137,16 @@ export default function BrowseJobs() {
                             >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex-1">
-                                        <h3 className="text-2xl font-bold text-gray-800 mb-2">{job.title}</h3>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-2">{job.title}</h3>
+                                            <button
+                                                onClick={() => handleToggleSave(job.id)}
+                                                aria-label={savedIds.includes(job.id) ? 'Remove from saved jobs' : 'Save job'}
+                                                className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                            >
+                                                <i className={`${savedIds.includes(job.id) ? 'fa-solid text-emerald-600' : 'fa-regular text-gray-400'} fa-bookmark text-xl`}></i>
+                                            </button>
+                                        </div>
                                         <div className="flex flex-wrap gap-3 mb-3">
                                             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
                                                 {job.job_type?.replace('_', ' ').toUpperCase()}
