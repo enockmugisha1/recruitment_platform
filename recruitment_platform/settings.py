@@ -100,7 +100,7 @@ if database_url and '[YOUR-PASSWORD]' not in database_url:
                 conn_health_checks=True,
             )
         }
-        database_configured = True
+        database_configured = False
     except Exception:
         pass
 
@@ -119,7 +119,7 @@ if not database_configured and os.environ.get('USE_POSTGRESQL', 'False') == 'Tru
             },
         }
     }
-    database_configured = True
+    database_configured = False
 
 # Priority 3: Fallback to SQLite for local development
 if not database_configured:

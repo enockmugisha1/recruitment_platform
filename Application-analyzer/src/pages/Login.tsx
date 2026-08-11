@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useOutletContext, useNavigate, Link } from "react-router-dom";
 import axios from "../api/axios";
 import { ToastContainer, toast } from 'react-toastify';
@@ -46,6 +46,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   const copy = ROLE_COPY[activeRole];
 
@@ -60,6 +61,13 @@ export default function Login() {
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
+
+    // Guards against a double-click/double-Enter firing this twice before
+    // the `loading` state (which is async) has a chance to disable the
+    // button — submittingRef flips synchronously, so the second call bails
+    // out immediately instead of kicking off a second request/navigation.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
 
     try {
@@ -99,15 +107,14 @@ export default function Login() {
 
       handleAuth(e);
 
-      setTimeout(() => {
-        navigate(user.role === 'recruiter' ? '/' : '/dashboard', { replace: true });
-      }, 700);
+      navigate(user.role === 'recruiter' ? '/' : '/dashboard', { replace: true });
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || "Login failed";
       toast.error(errorMessage, {
         position: "top-right",
         autoClose: 5000,
       });
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }
