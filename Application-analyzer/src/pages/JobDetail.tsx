@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { jobService, Job, applicationService, Application } from "../api/services";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { isJobActive } from "../utils/jobStatus";
 
 export default function JobDetail() {
     const { id } = useParams<{ id: string }>();
@@ -55,20 +56,14 @@ export default function JobDetail() {
         }
     };
 
-    const handleToggleStatus = async () => {
-        if (!job) return;
-
-        try {
-            const updatedJob = await jobService.updateJob(job.id, {
-                ...job,
-                is_active: !job.is_active,
-            });
-            setJob(updatedJob);
-            toast.success(`Job ${updatedJob.is_active ? 'activated' : 'deactivated'} successfully`);
-        } catch (error: any) {
-            toast.error(error.response?.data?.detail || "Failed to update job status");
-        }
-    };
+    // NOTE: there used to be a handleToggleStatus() here that PATCHed
+    // `is_active` to the backend. The Job model has no is_active field at
+    // all (confirmed against applications/models.py) — DRF silently drops
+    // unknown keys on write, so that button always reported success while
+    // persisting nothing. Status here is derived from `deadline` instead
+    // (see isJobActive), same as everywhere else it's shown, and the real
+    // way to close a job early is editing its deadline — see the Edit
+    // Job link and the note next to the status badge below.
 
     const getJobTypeLabel = (type: string) => {
         const labels: { [key: string]: string } = {
@@ -152,15 +147,6 @@ export default function JobDetail() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleToggleStatus}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${job.is_active
-                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                : "bg-green-600 text-white hover:bg-green-700"
-                            }`}
-                    >
-                        {job.is_active ? "Deactivate" : "Activate"}
-                    </button>
                     <Link
                         to={`/jobs/${job.id}/edit`}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-all"
@@ -179,12 +165,19 @@ export default function JobDetail() {
             </div>
 
             {/* Status Badge */}
-            <div>
+            <div className="flex items-center gap-3">
                 <span
-                    className={`px-3 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${job.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    className={`px-3 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${isJobActive(job) ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}
                 >
-                    {job.is_active ? "Active" : "Closed"}
+                    {isJobActive(job) ? "Active" : "Closed"}
+                </span>
+                <span className="text-sm text-gray-500">
+                    Status is based on the deadline ({new Date(job.deadline).toLocaleDateString()}) —{" "}
+                    <Link to={`/jobs/${job.id}/edit`} className="text-green-600 hover:underline font-medium">
+                        edit the job
+                    </Link>{" "}
+                    to change it.
                 </span>
             </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { applicationService, Application, Job } from "../api/services";
+import { applicationService, jobService, Application, Job } from "../api/services";
 import { Link } from "react-router-dom";
 
 export default function MyApplications() {
@@ -7,6 +7,11 @@ export default function MyApplications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  // The applications endpoint only returns `job` as a bare numeric ID
+  // (JobSeekerApplicationSerializer defines it as a PrimaryKeyRelatedField,
+  // not a nested object), so job titles have to be fetched separately and
+  // looked up by id here.
+  const [jobsById, setJobsById] = useState<Record<number, Job>>({});
 
   useEffect(() => {
     fetchApplications();
@@ -23,7 +28,34 @@ export default function MyApplications() {
       });
       
       const appsList = data.results || data;
-      setApplications(Array.isArray(appsList) ? appsList : []);
+      const apps: Application[] = Array.isArray(appsList) ? appsList : [];
+      setApplications(apps);
+
+      // `job` on each application is just a numeric id (see comment above)
+      // — fetch details for whichever ids we don't already have cached so
+      // the cards can show a real title instead of the literal word "Job".
+      const idsNeeded = Array.from(
+        new Set(
+          apps
+            .map((app) => (typeof app.job === 'object' ? app.job.id : app.job))
+            .filter((id): id is number => typeof id === 'number' && !(id in jobsById))
+        )
+      );
+
+      if (idsNeeded.length > 0) {
+        const fetchedJobs = await Promise.allSettled(
+          idsNeeded.map((id) => jobService.getJob(id))
+        );
+        setJobsById((prev) => {
+          const next = { ...prev };
+          fetchedJobs.forEach((result, i) => {
+            if (result.status === 'fulfilled') {
+              next[idsNeeded[i]] = result.value;
+            }
+          });
+          return next;
+        });
+      }
     } catch (err: any) {
       console.error("Error fetching applications:", err);
       setError(err.response?.data?.detail || "Failed to load applications");
@@ -49,8 +81,9 @@ export default function MyApplications() {
     );
   };
 
-  const getJobTitle = (job: any) => {
-    return typeof job === 'object' ? job.title : 'Job';
+  const getJobTitle = (job: number | Job) => {
+    if (typeof job === 'object') return job.title;
+    return jobsById[job]?.title ?? 'Job';
   };
 
   return (

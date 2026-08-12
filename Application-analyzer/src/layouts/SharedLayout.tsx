@@ -47,7 +47,6 @@ export default function SharedLayout() {
     const brandIcon = isRecruiter ? "fa-users-gear" : "fa-briefcase";
     const brandLabel = isRecruiter ? "RecruiterPro" : "JobSeeker";
     const roleLabel = isRecruiter ? "Recruiter" : "Job Seeker";
-    const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email || roleLabel;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -76,7 +75,7 @@ export default function SharedLayout() {
                             >
                                 <img src={pfpImg} alt="Profile" className="w-8 h-8 rounded-full border-2 border-gray-200" />
                                 <div className="hidden md:block text-left">
-                                    <p className="text-sm font-semibold text-gray-700">{displayName}</p>
+                                    <p className="text-sm font-semibold text-gray-700">{user.email || roleLabel}</p>
                                     <p className="text-xs text-gray-500">{roleLabel}</p>
                                 </div>
                                 <i className={`fa-solid fa-chevron-${showProfileMenu ? "up" : "down"} text-gray-400 text-xs`}></i>
@@ -85,7 +84,7 @@ export default function SharedLayout() {
                             {showProfileMenu && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                                     <div className="p-3 border-b border-gray-200">
-                                        <p className="text-sm font-semibold text-gray-800">{displayName}</p>
+                                        <p className="text-sm font-semibold text-gray-800">{user.email || roleLabel}</p>
                                         <p className="text-xs text-gray-500">{roleLabel} Account</p>
                                     </div>
                                     <div className="py-1">

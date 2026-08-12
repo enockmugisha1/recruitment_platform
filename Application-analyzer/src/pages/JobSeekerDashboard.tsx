@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { applicationService, profileService, Application, JobSeekerProfile, Job } from "../api/services";
+import { applicationService, profileService, jobService, Application, JobSeekerProfile, Job } from "../api/services";
 
 export default function JobSeekerDashboard() {
   console.log("Dashboard mounted");
@@ -7,6 +7,13 @@ export default function JobSeekerDashboard() {
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Applications only carry `job` as a bare numeric id (the backend
+  // serializer uses a PrimaryKeyRelatedField, not a nested object), so job
+  // titles are fetched separately and looked up here. There is no way to
+  // resolve a company name this way — that lives on RecruiterProfile, which
+  // is only readable by recruiters/admins/staff on this backend, so it's
+  // intentionally left off the card below rather than faked.
+  const [jobsById, setJobsById] = useState<Record<number, Job>>({});
 
   // Fetch user data and applications
   useEffect(() => {
@@ -17,7 +24,27 @@ export default function JobSeekerDashboard() {
         // Fetch applications
         const appsData = await applicationService.getMyApplications({ ordering: '-applied_at' });
         const appsList = appsData.results || appsData;
-        setApplications(Array.isArray(appsList) ? appsList : []);
+        const apps: Application[] = Array.isArray(appsList) ? appsList : [];
+        setApplications(apps);
+
+        // Hydrate job titles — see comment above on jobsById.
+        const idsNeeded = Array.from(
+          new Set(
+            apps
+              .map((app) => (typeof app.job === 'object' ? app.job.id : app.job))
+              .filter((id): id is number => typeof id === 'number')
+          )
+        );
+        if (idsNeeded.length > 0) {
+          const fetchedJobs = await Promise.allSettled(idsNeeded.map((id) => jobService.getJob(id)));
+          const jobsMap: Record<number, Job> = {};
+          fetchedJobs.forEach((result, i) => {
+            if (result.status === 'fulfilled') {
+              jobsMap[idsNeeded[i]] = result.value;
+            }
+          });
+          setJobsById(jobsMap);
+        }
 
         // Fetch profile
         try {
@@ -196,7 +223,7 @@ export default function JobSeekerDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {applications.map((app: Application, idx: number) => (
                 <div
-                  key={idx}
+                  key={app.id ?? idx}
                   style={{
                     border: "1px solid #e0e0e0",
                     borderRadius: 6,
@@ -221,10 +248,7 @@ export default function JobSeekerDashboard() {
                         color: "#1a2e46",
                         marginBottom: 8,
                       }}>
-                        {app.job?.title || 'Job Title'}
-                      </div>
-                      <div style={{ color: "#666", fontSize: 14, marginBottom: 4 }}>
-                        {app.job?.company || 'Company Name'}
+                        {typeof app.job === 'object' ? app.job.title : jobsById[app.job]?.title ?? 'Job'}
                       </div>
                       <div style={{ color: "#999", fontSize: 13 }}>
                         Applied on {new Date(app.applied_at).toLocaleDateString()}

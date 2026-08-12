@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { jobService, Job } from "../api/services";
+import { jobService, profileService, Job } from "../api/services";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { isJobActive } from "../utils/jobStatus";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -31,14 +32,45 @@ export default function Jobs() {
       });
 
       // Handle paginated response
+      let fetchedJobs: Job[] = [];
       if (data.results && Array.isArray(data.results)) {
-        setJobs(data.results);
+        fetchedJobs = data.results;
       } else if (Array.isArray(data)) {
-        setJobs(data);
+        fetchedJobs = data;
       } else {
         setJobs([]);
         setError("Invalid data format received");
+        return;
       }
+
+      // This endpoint returns every job in the system, not just this
+      // recruiter's own postings — job seekers are meant to see everything
+      // via Browse Jobs, but a recruiter managing listings here should
+      // only see (and be able to edit/delete) jobs they actually created.
+      //
+      // Job.recruiter is a foreign key to RecruiterProfile.id — NOT the
+      // logged-in User's id from the JWT/localStorage. Those are two
+      // different id spaces (a previous version of this filter compared
+      // job.recruiter against the User id directly, which meant it never
+      // matched and every job silently disappeared). The recruiter's own
+      // RecruiterProfile.id has to be looked up first.
+      let ownJobs = fetchedJobs;
+      try {
+        const profileData = await profileService.getRecruiterProfile();
+        const profileList = profileData.results || profileData;
+        const myProfile = Array.isArray(profileList) ? profileList[0] : null;
+        if (myProfile?.id != null) {
+          ownJobs = fetchedJobs.filter(
+            (job) => String(job.recruiter) === String(myProfile.id)
+          );
+        }
+      } catch (profileError) {
+        // No recruiter profile yet (or it failed to load) — fall back to
+        // showing everything rather than hiding all jobs on an error.
+        console.error("Error loading recruiter profile for job filtering:", profileError);
+      }
+
+      setJobs(ownJobs);
     } catch (error: any) {
       console.error("Error fetching jobs:", error);
       setError(error.response?.data?.detail || "Failed to fetch jobs");
@@ -459,9 +491,9 @@ function JobCard({
       {/* Footer */}
       <div className="px-6 py-4 bg-gradient-to-br from-gray-50 to-gray-50/50 border-t border-gray-100 flex items-center justify-between">
         <span
-          className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${job.is_active ? "bg-gradient-to-r from-green-500 to-green-600 text-white" : "bg-gradient-to-r from-red-500 to-red-600 text-white"}`}
+          className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${isJobActive(job) ? "bg-gradient-to-r from-green-500 to-green-600 text-white" : "bg-gradient-to-r from-red-500 to-red-600 text-white"}`}
         >
-          {job.is_active ? "● Active" : "● Closed"}
+          {isJobActive(job) ? "● Active" : "● Closed"}
         </span>
         <Link
           to={`/jobs/${job.id}`}
@@ -542,9 +574,9 @@ function JobListItem({
           {/* Right: Status & Actions */}
           <div className="flex items-center gap-4 flex-shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0">
             <span
-              className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${job.is_active ? "bg-gradient-to-r from-green-500 to-green-600 text-white" : "bg-gradient-to-r from-red-500 to-red-600 text-white"}`}
+              className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${isJobActive(job) ? "bg-gradient-to-r from-green-500 to-green-600 text-white" : "bg-gradient-to-r from-red-500 to-red-600 text-white"}`}
             >
-              {job.is_active ? "● Active" : "● Closed"}
+              {isJobActive(job) ? "● Active" : "● Closed"}
             </span>
 
             <Link

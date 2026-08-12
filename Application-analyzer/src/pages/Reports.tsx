@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { jobService, applicationService, Job, Application } from "../api/services";
+import { isJobActive } from "../utils/jobStatus";
 
 interface Stats {
   totalJobs: number;
@@ -33,7 +34,7 @@ export default function Reports() {
 
         setStats({
           totalJobs: jobsList.length,
-          activeJobs: jobsList.filter((j) => j.is_active).length,
+          activeJobs: jobsList.filter((j) => isJobActive(j)).length,
           totalApplications: appsList.length,
           shortlisted: appsList.filter((a) => a.status === "shortlisted").length,
           rejected: appsList.filter((a) => a.status === "rejected").length,
@@ -118,10 +119,10 @@ export default function Reports() {
                     <td className="px-5 py-3">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          job.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                          isJobActive(job) ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                         }`}
                       >
-                        {job.is_active ? "Active" : "Closed"}
+                        {isJobActive(job) ? "Active" : "Closed"}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-gray-600">

@@ -11,6 +11,14 @@ export default function BrowseJobs() {
     const [applyingToJob, setApplyingToJob] = useState<number | null>(null)
     const [savedIds, setSavedIds] = useState<number[]>(() => getSavedJobIds())
 
+    // The backend requires an actual resume FILE upload per application
+    // (JobSeekerApplication.resume is a required FileField — there's no
+    // stored resume on the profile to fall back to), so "Apply Now" opens
+    // this modal to collect one instead of submitting immediately.
+    const [applyModalJob, setApplyModalJob] = useState<Job | null>(null)
+    const [resumeFile, setResumeFile] = useState<File | null>(null)
+    const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null)
+
     const handleToggleSave = (jobId: number) => {
         const nowSaved = toggleSavedJob(jobId)
         setSavedIds(getSavedJobIds())
@@ -35,18 +43,48 @@ export default function BrowseJobs() {
         }
     }
 
-    const handleApplyToJob = async (jobId: number) => {
+    const openApplyModal = (job: Job) => {
+        setApplyModalJob(job)
+        setResumeFile(null)
+        setCoverLetterFile(null)
+    }
+
+    const closeApplyModal = () => {
+        setApplyModalJob(null)
+        setResumeFile(null)
+        setCoverLetterFile(null)
+    }
+
+    const handleSubmitApplication = async () => {
+        if (!applyModalJob) return
+        if (!resumeFile) {
+            toast.error('A resume is required to apply.')
+            return
+        }
+
         try {
-            setApplyingToJob(jobId)
+            setApplyingToJob(applyModalJob.id)
             const formData = new FormData()
-            formData.append('job', jobId.toString())
-            formData.append('cover_letter', '')
+            formData.append('job', applyModalJob.id.toString())
+            formData.append('resume', resumeFile)
+            // cover_letter is an optional FileField on the backend, not
+            // text — only include it if a file was actually chosen.
+            if (coverLetterFile) {
+                formData.append('cover_letter', coverLetterFile)
+            }
             await applicationService.applyForJob(formData)
             toast.success('Application submitted successfully!')
-            // Optionally refresh jobs or mark as applied
+            closeApplyModal()
             fetchJobs()
         } catch (error: any) {
-            toast.error(error.response?.data?.detail || 'Failed to apply to job')
+            const data = error.response?.data
+            // DRF validation errors come back as { field: [messages] } —
+            // surface the actual reason instead of a generic failure.
+            const firstFieldError =
+                data && typeof data === 'object'
+                    ? Object.values(data).flat().find((v) => typeof v === 'string')
+                    : undefined
+            toast.error(data?.detail || firstFieldError || 'Failed to apply to job')
         } finally {
             setApplyingToJob(null)
         }
@@ -191,7 +229,7 @@ export default function BrowseJobs() {
                                         )}
                                     </div>
                                     <button
-                                        onClick={() => handleApplyToJob(job.id)}
+                                        onClick={() => openApplyModal(job)}
                                         disabled={applyingToJob === job.id}
                                         className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -203,6 +241,71 @@ export default function BrowseJobs() {
                     </div>
                 )}
             </div>
+
+            {/* Apply Modal — collects the resume the backend requires */}
+            {applyModalJob && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+                    onClick={closeApplyModal}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-xl font-bold text-gray-800 mb-1">Apply to {applyModalJob.title}</h3>
+                        <p className="text-sm text-gray-500 mb-5">
+                            Upload your resume to submit this application (PDF, DOC, or DOCX).
+                        </p>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Resume <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                                className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-medium hover:file:bg-emerald-100"
+                            />
+                            {resumeFile && (
+                                <p className="text-xs text-gray-500 mt-1">{resumeFile.name}</p>
+                            )}
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Cover Letter <span className="text-gray-400 font-normal">(optional)</span>
+                            </label>
+                            <input
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                onChange={(e) => setCoverLetterFile(e.target.files?.[0] || null)}
+                                className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:font-medium hover:file:bg-gray-200"
+                            />
+                            {coverLetterFile && (
+                                <p className="text-xs text-gray-500 mt-1">{coverLetterFile.name}</p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={closeApplyModal}
+                                disabled={applyingToJob === applyModalJob.id}
+                                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmitApplication}
+                                disabled={applyingToJob === applyModalJob.id || !resumeFile}
+                                className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {applyingToJob === applyModalJob.id ? 'Submitting...' : 'Submit Application'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

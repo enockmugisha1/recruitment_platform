@@ -10,7 +10,6 @@ export default function JobSeekerLayout() {
     const [showNotifications, setShowNotifications] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [email, setEmail] = useState<string | undefined>(undefined);
-    const [fullName, setFullName] = useState<string | undefined>(undefined);
     const navigate = useNavigate();
 
     // Only job seekers may render this layout. Nothing below renders until
@@ -22,13 +21,7 @@ export default function JobSeekerLayout() {
         if (user?.email) {
             setEmail(user.email);
         }
-        const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ");
-        if (name) {
-            setFullName(name);
-        }
     }, [user]);
-
-    const displayName = fullName || email || "Job Seeker";
 
     const [animate, setAnimate] = useState(false);
     useEffect(() => {
@@ -182,7 +175,7 @@ export default function JobSeekerLayout() {
                             >
                                 <img src={pfpImg} alt="Profile" className="w-8 h-8 rounded-full border-2 border-gray-200" />
                                 <div className="hidden md:block text-left">
-                                    <p className="text-sm font-semibold text-gray-700">{displayName}</p>
+                                    <p className="text-sm font-semibold text-gray-700">{email || "Job Seeker"}</p>
                                     <p className="text-xs text-gray-500">Job Seeker</p>
                                 </div>
                                 <i className={`fa-solid fa-chevron-${showProfileMenu ? "up" : "down"} text-gray-400 text-xs`}></i>
@@ -192,7 +185,7 @@ export default function JobSeekerLayout() {
                             {showProfileMenu && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                                     <div className="p-3 border-b border-gray-200">
-                                        <p className="text-sm font-semibold text-gray-800">{displayName}</p>
+                                        <p className="text-sm font-semibold text-gray-800">{email || "Job Seeker"}</p>
                                         <p className="text-xs text-gray-500">Job Seeker Account</p>
                                     </div>
                                     <div className="py-1">

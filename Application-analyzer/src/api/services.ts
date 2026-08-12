@@ -173,12 +173,12 @@ export const applicationService = {
 export const profileService = {
   // Job Seeker Profile
   getJobSeekerProfile: async () => {
-    const response = await axios.get('/access/job-seeker-profile/');
+    const response = await axios.get('/profile/job/seeker/');
     return response.data;
   },
 
   createJobSeekerProfile: async (profileData: FormData) => {
-    const response = await axios.post('/access/job-seeker-profile/', profileData, {
+    const response = await axios.post('/profile/job/seeker/', profileData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -187,7 +187,7 @@ export const profileService = {
   },
 
   updateJobSeekerProfile: async (profileId: number, profileData: FormData) => {
-    const response = await axios.put(`/access/job-seeker-profile/${profileId}/`, profileData, {
+    const response = await axios.put(`/profile/job/seeker/${profileId}/`, profileData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -197,12 +197,12 @@ export const profileService = {
 
   // Recruiter Profile
   getRecruiterProfile: async () => {
-    const response = await axios.get('/access/recruiter-profile/');
+    const response = await axios.get('/profile/job/recruiter/');
     return response.data;
   },
 
   createRecruiterProfile: async (profileData: FormData) => {
-    const response = await axios.post('/access/recruiter-profile/', profileData, {
+    const response = await axios.post('/profile/job/recruiter/', profileData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -211,7 +211,7 @@ export const profileService = {
   },
 
   updateRecruiterProfile: async (profileId: number, profileData: FormData) => {
-    const response = await axios.put(`/access/recruiter-profile/${profileId}/`, profileData, {
+    const response = await axios.put(`/profile/job/recruiter/${profileId}/`, profileData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

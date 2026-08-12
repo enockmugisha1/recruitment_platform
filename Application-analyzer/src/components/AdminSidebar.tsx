@@ -18,7 +18,8 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         <>
             {/* Sidebar */}
             <aside
-                className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 z-40 ${isOpen ? "translate-x-0" : "-translate-x-full"
+                className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 z-40 ${
+                    isOpen ? "translate-x-0" : "-translate-x-full"
                     }`}
             >
                 {/* Navigation */}
