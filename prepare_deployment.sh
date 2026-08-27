@@ -36,13 +36,14 @@ echo ""
 
 # Step 1: Install production dependencies
 echo "📦 Step 1: Installing production dependencies..."
-pip install -q gunicorn dj-database-url whitenoise python-decouple
+python -m pip install --upgrade pip
+python -m pip install gunicorn dj-database-url whitenoise python-decouple
 echo -e "${GREEN}✓ Production dependencies installed${NC}"
 echo ""
 
 # Step 2: Update requirements.txt
 echo "📝 Step 2: Updating requirements.txt..."
-pip freeze > requirements.txt
+python -m pip freeze > requirements.txt
 echo -e "${GREEN}✓ Requirements.txt updated${NC}"
 echo ""
 
