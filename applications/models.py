@@ -46,6 +46,17 @@ class JobSeekerApplication(models.Model):
         ('accepted', 'Accepted'),
     )
 
+    # Review pipeline: where a recruiter may move an application from each state.
+    # submitted -> under_review -> shortlisted -> accepted, with rejection
+    # possible along the way. A rejected application can be re-opened.
+    ALLOWED_TRANSITIONS = {
+        'submitted': ['under_review', 'rejected'],
+        'under_review': ['shortlisted', 'rejected'],
+        'shortlisted': ['accepted', 'rejected'],
+        'accepted': [],
+        'rejected': ['under_review'],
+    }
+
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='applications')
     applicant = models.ForeignKey(JobSeekerProfile, on_delete=models.CASCADE, related_name='applications')
     resume = models.FileField(

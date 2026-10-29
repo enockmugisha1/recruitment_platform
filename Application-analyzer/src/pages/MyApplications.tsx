@@ -153,7 +153,7 @@ export default function MyApplications() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                    {getJobTitle(application.job)}
+                    {application.job_title || getJobTitle(application.job)}
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     <span>

@@ -21,7 +21,7 @@ class JobSeekerProfileViewSet(viewsets.ModelViewSet):
             return JobSeekerProfile.objects.none()
         
         job_seeker = self.request.user
-        user = JobSeekerProfile.objects.filter(user=job_seeker)
+        user = JobSeekerProfile.objects.filter(user=job_seeker).order_by('id')
         return user
 
     def perform_create(self, serializer):

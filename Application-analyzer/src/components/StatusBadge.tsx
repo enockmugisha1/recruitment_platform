@@ -19,6 +19,7 @@ export default function StatusBadge({ status, customClass }: StatusBadgeProps) {
             case "interview":
                 return "badge-interview";
             case "hired":
+            case "accepted":
                 return "badge-hired";
             case "rejected":
                 return "badge-rejected";

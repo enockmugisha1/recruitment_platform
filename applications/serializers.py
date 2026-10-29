@@ -21,15 +21,60 @@ class JobSerializer(serializers.ModelSerializer):
         return value
 
 class JobSeekerApplicationSerializer(serializers.ModelSerializer):
+    """
+    Application payload.
+
+    `job` and `applicant` stay plain ids (existing clients rely on that);
+    everything a recruiter needs to review the submission is added as
+    read-only fields so the UI doesn't have to make extra requests.
+    """
     job = serializers.PrimaryKeyRelatedField(queryset=Job.objects.all())
     applicant = serializers.PrimaryKeyRelatedField(read_only=True)
     cover_letter = serializers.FileField(required=False)
 
+    # Job info
+    job_title = serializers.CharField(source='job.title', read_only=True)
+
+    # Applicant info (taken from the account + profile at read time)
+    first_name = serializers.CharField(source='applicant.user.first_name', read_only=True)
+    last_name = serializers.CharField(source='applicant.user.last_name', read_only=True)
+    email = serializers.EmailField(source='applicant.user.email', read_only=True)
+    phone = serializers.CharField(source='applicant.phone', read_only=True)
+    location = serializers.CharField(source='applicant.location', read_only=True)
+    years_of_experience = serializers.IntegerField(source='applicant.years_of_experience', read_only=True)
+    education = serializers.CharField(source='applicant.education', read_only=True)
+    linkedin = serializers.CharField(source='applicant.linkedin', read_only=True)
+    picture = serializers.SerializerMethodField()
+
+    # Alias kept for older frontend code that reads `submitted_at`
+    submitted_at = serializers.DateTimeField(source='applied_at', read_only=True)
+
+    # Which status values the recruiter may move this application to next
+    allowed_next_statuses = serializers.SerializerMethodField()
+
     class Meta:
         model = JobSeekerApplication
         fields = '__all__'
+        # NOTE: this used to sit *outside* Meta, where DRF ignores it, which
+        # meant an applicant could post their own `status`.
+        read_only_fields = ['status', 'applied_at']
 
-    read_only_fields = ['status', 'applied_at']
+    def get_picture(self, obj):
+        pic = obj.applicant.picture
+        if not pic:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(pic.url) if request else pic.url
+
+    def get_allowed_next_statuses(self, obj):
+        return JobSeekerApplication.ALLOWED_TRANSITIONS.get(obj.status, [])
+
+    def validate_job(self, job):
+        # Only enforced when submitting, not when a file is replaced later.
+        if self.instance is None:
+            if job.deadline < date.today():
+                raise serializers.ValidationError("The deadline for this job has passed.")
+        return job
 
     def validate_file_extension(self, file):
         MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
@@ -48,6 +93,10 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
         if value:
             return self.validate_file_extension(value)
         return value
+
+
+class ApplicationStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=JobSeekerApplication.STATUS_CHOICES)
 
 
 class CalendarEventSerializer(serializers.ModelSerializer):

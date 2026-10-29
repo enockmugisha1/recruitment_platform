@@ -1,70 +1,46 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import axios from "../api/axios";
 import AIScoreWidget from "../components/AIScoreWidget";
 import StatusBadge from "../components/StatusBadge";
+import ApplicationStatusControl from "../components/ApplicationStatusControl";
+import { Application } from "../api/services";
 import { getAIScore } from "../data/mockAIScores";
 import { toast, ToastContainer } from "react-toastify";
-import defpfp from "../assets/defpfp.svg";
 import "react-toastify/dist/ReactToastify.css";
 
-interface CandidateApplication {
-    id: number;
-    job: {
-        id: number;
-        title: string;
-    };
-    applicant: {
-        id: number;
-        user: {
-            first_name: string;
-            last_name: string;
-            email: string;
-        };
-        phone?: string;
-        location?: string;
-        picture?: string;
-        years_of_experience?: number;
-    };
-    status: string;
-    applied_at: string;
-    resume?: string;
-    cover_letter?: string;
-}
+// The pipeline a recruiter moves an application through (rejected is a side exit)
+const PIPELINE: { key: string; label: string }[] = [
+    { key: "submitted", label: "Submitted" },
+    { key: "under_review", label: "Under Review" },
+    { key: "shortlisted", label: "Shortlisted" },
+    { key: "accepted", label: "Accepted" },
+];
+
+const fileName = (url?: string | null) => (url ? decodeURIComponent(url.split("/").pop() || "file") : "");
 
 export default function CandidateDetail() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const [application, setApplication] = useState<CandidateApplication | null>(null);
+    const [application, setApplication] = useState<Application | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (id) {
-            fetchCandidateDetails();
-        }
+        if (id) fetchCandidateDetails();
     }, [id]);
 
     const fetchCandidateDetails = async () => {
         try {
             setLoading(true);
+            // The API only returns this application if it belongs to one of the
+            // logged-in recruiter's jobs; anything else comes back as 404.
             const response = await axios.get(`/access/applications/${id}/`);
             setApplication(response.data);
         } catch (error: any) {
             console.error("Error fetching candidate details:", error);
+            setApplication(null);
             toast.error("Failed to load candidate details");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const updateStatus = async (newStatus: string) => {
-        if (!id) return;
-        try {
-            await axios.patch(`/access/applications/${id}/`, { status: newStatus });
-            toast.success(`Application ${newStatus}!`);
-            fetchCandidateDetails();
-        } catch (error: any) {
-            toast.error(error.response?.data?.detail || "Failed to update status");
         }
     };
 
@@ -94,9 +70,9 @@ export default function CandidateDetail() {
     }
 
     const aiScore = getAIScore(application.id);
-    const fullName = application.applicant?.user
-        ? `${application.applicant.user.first_name} ${application.applicant.user.last_name}`
-        : "Unknown Candidate";
+    const fullName = `${application.first_name} ${application.last_name}`.trim() || "Unknown Candidate";
+    const currentStep = PIPELINE.findIndex((p) => p.key === application.status);
+    const rejected = application.status === "rejected";
 
     return (
         <div className="p-6 md:p-10 main-bg min-h-screen">
@@ -106,7 +82,7 @@ export default function CandidateDetail() {
             <div className="mb-6">
                 <Link to="/candidates" className="text-sm text-gray-600 hover:text-green-600 flex items-center gap-2">
                     <i className="fa-solid fa-chevron-left"></i>
-                    <span>Pascal Onuoha</span>
+                    <span>Back to candidates</span>
                 </Link>
             </div>
 
@@ -117,64 +93,72 @@ export default function CandidateDetail() {
                     <div className="modern-card p-6">
                         <div className="flex items-start justify-between mb-6">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-600">
-                                    {fullName.charAt(0)}
-                                </div>
+                                {application.picture ? (
+                                    <img src={application.picture} alt={fullName} className="w-16 h-16 rounded-full object-cover" />
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-600">
+                                        {fullName.charAt(0)}
+                                    </div>
+                                )}
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-800">{fullName}</h1>
-                                    <p className="text-sm text-gray-600">{application.job?.title || "Position Not Specified"}</p>
+                                    <p className="text-sm text-gray-600">
+                                        Applied for <span className="font-semibold">{application.job_title}</span>
+                                    </p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                        {application.applicant?.user?.email} • +250124568457
+                                        {application.email}
+                                        {application.phone ? ` • ${application.phone}` : ""}
                                     </p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <button className="text-sm text-blue-600 hover:underline mr-2">
-                                    <i className="fa-solid fa-pen mr-1"></i>
-                                    Edit
-                                </button>
-                                <button className="text-sm text-blue-600 hover:underline mr-2">
-                                    <i className="fa-brands fa-linkedin mr-1"></i>
-                                </button>
-                                <button className="text-sm text-blue-600 hover:underline mr-2">
-                                    <i className="fa-brands fa-twitter mr-1"></i>
-                                </button>
-                                <button className="text-sm text-blue-600 hover:underline">
-                                    <i className="fa-solid fa-link mr-1"></i>
-                                </button>
-                            </div>
+                            <StatusBadge status={application.status} />
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                onClick={() => updateStatus("shortlisted")}
-                                className="btn-success"
-                            >
-                                Accept Candidate
-                            </button>
-                            <button
-                                onClick={() => updateStatus("rejected")}
-                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
-                            >
-                                Reject Candidate
-                            </button>
-                            <button className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition">
-                                Schedule Interview
-                            </button>
-                            <button className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
-                                Reject Application
-                            </button>
+                        {/* Review progress: Submitted -> Under Review -> Shortlisted -> Accepted */}
+                        <div className="mb-6">
+                            <p className="text-xs text-gray-500 uppercase mb-2">Review progress</p>
+                            <div className="flex items-center">
+                                {PIPELINE.map((step, i) => {
+                                    const done = !rejected && i <= currentStep;
+                                    return (
+                                        <div key={step.key} className="flex items-center flex-1 last:flex-none">
+                                            <div className="flex flex-col items-center">
+                                                <div
+                                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${done ? "bg-green-500 text-white" : "bg-gray-200 text-gray-500"
+                                                        }`}
+                                                >
+                                                    {done ? <i className="fa-solid fa-check"></i> : i + 1}
+                                                </div>
+                                                <span className="text-[11px] text-gray-600 mt-1 whitespace-nowrap">{step.label}</span>
+                                            </div>
+                                            {i < PIPELINE.length - 1 && (
+                                                <div className={`h-0.5 flex-1 mx-2 mb-4 ${!rejected && i < currentStep ? "bg-green-500" : "bg-gray-200"}`} />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {rejected && (
+                                <p className="text-xs text-red-600 mt-3 font-semibold">This application was rejected.</p>
+                            )}
+                        </div>
+
+                        {/* Next-step buttons (only the moves the pipeline allows) */}
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase mb-2">Move this application</p>
+                            <ApplicationStatusControl
+                                application={application}
+                                onChanged={(updated) => setApplication((prev) => (prev ? { ...prev, ...updated } : updated))}
+                            />
                         </div>
                     </div>
 
-                    {/* Overall Candidate Profile */}
+                    {/* What the applicant submitted */}
                     <div className="modern-card p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">Overall Candidate Profile</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">Submission</h2>
 
-                        {/* Candidate Files */}
                         <div className="mb-6">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Candidate Files</h3>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Files</h3>
                             <div className="flex flex-wrap gap-3">
                                 {application.resume && (
                                     <a
@@ -184,98 +168,90 @@ export default function CandidateDetail() {
                                         className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition"
                                     >
                                         <i className="fa-solid fa-file-pdf text-red-500"></i>
-                                        <span className="text-sm text-gray-700">Cover_letter.pdf</span>
-                                        <span className="text-xs text-gray-500">10 MB</span>
+                                        <span className="text-sm text-gray-700">Resume — {fileName(application.resume)}</span>
                                     </a>
                                 )}
-                                {application.resume && (
+                                {application.cover_letter ? (
                                     <a
-                                        href={application.resume}
+                                        href={application.cover_letter}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition"
                                     >
-                                        <i className="fa-solid fa-file-pdf text-red-500"></i>
-                                        <span className="text-sm text-gray-700">My_resume.pdf</span>
-                                        <span className="text-xs text-gray-500">12 MB</span>
+                                        <i className="fa-solid fa-file-lines text-blue-500"></i>
+                                        <span className="text-sm text-gray-700">Cover letter — {fileName(application.cover_letter)}</span>
                                     </a>
+                                ) : (
+                                    <span className="text-sm text-gray-400">No cover letter attached</span>
                                 )}
                             </div>
                         </div>
 
-                        {/* Last Experience */}
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-700 mb-4">Last Experience</h3>
-                            <div className="space-y-4">
-                                <div className="border-l-2 border-green-500 pl-4 py-2">
-                                    <p className="font-semibold text-gray-800">Senior Data Analyst</p>
-                                    <p className="text-sm text-gray-600">Google • (May 2001 - Present)</p>
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        <span className="font-semibold">Responsible for:</span>
-                                    </p>
-                                    <ul className="text-xs text-gray-600 mt-1 list-disc list-inside">
-                                        <li>Data Exploration and Analysis: They perform exploratory data analysis to uncover insights, trends, and patterns in the data.</li>
-                                        <li>Data Cleaning and Preprocessing: Data analysts are responsible for cleaning and preparing data to ensure its accuracy and reliability for analysis.</li>
-                                    </ul>
-                                </div>
-
-                                <div className="border-l-2 border-gray-300 pl-4 py-2">
-                                    <p className="font-semibold text-gray-800">Junior Data Analyst</p>
-                                    <p className="text-sm text-gray-600">Microsoft • (May 2021 - May 2023)</p>
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        <span className="font-semibold">Responsible for:</span>
-                                    </p>
-                                    <ul className="text-xs text-gray-600 mt-1 list-disc list-inside">
-                                        <li>Data Exploration and Analysis: They perform exploratory data analysis to uncover insights, trends, and patterns in the data.</li>
-                                        <li>Data Cleaning and Preprocessing: Data analysts are responsible for cleaning and preparing data to ensure its accuracy and reliability for analysis.</li>
-                                        <li>Reporting and Communication: They communicate their findings through reports, dashboards, and presentations to help stakeholders make informed decisions based on the data-driven insights.</li>
-                                    </ul>
-                                </div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Applicant details</h3>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Email</dt>
+                                <dd className="text-gray-800">{application.email}</dd>
                             </div>
-                        </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Phone</dt>
+                                <dd className="text-gray-800">{application.phone || "—"}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Location</dt>
+                                <dd className="text-gray-800">{application.location || "—"}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Years of experience</dt>
+                                <dd className="text-gray-800">{application.years_of_experience ?? "—"}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Education</dt>
+                                <dd className="text-gray-800">{application.education || "—"}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">LinkedIn</dt>
+                                <dd className="text-gray-800">
+                                    {application.linkedin ? (
+                                        <a href={application.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            View profile
+                                        </a>
+                                    ) : (
+                                        "—"
+                                    )}
+                                </dd>
+                            </div>
+                        </dl>
                     </div>
                 </div>
 
                 {/* Sidebar */}
                 <div className="lg:col-span-1 space-y-6">
-                    {/* Current Status */}
                     <div className="modern-card p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">Current Status</h3>
                         <div className="space-y-3">
                             <div>
-                                <p className="text-xs text-gray-500 uppercase mb-1">Round</p>
-                                <StatusBadge status="Final" customClass="badge-blue" />
+                                <p className="text-xs text-gray-500 uppercase mb-1">Status</p>
+                                <StatusBadge status={application.status} />
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500 uppercase mb-1">Assigned To</p>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold">
-                                        A
-                                    </div>
-                                    <span className="text-sm text-gray-700">Alemsy</span>
-                                </div>
+                                <p className="text-xs text-gray-500 uppercase mb-1">Position</p>
+                                <p className="text-sm text-gray-800 font-medium">{application.job_title}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500 uppercase mb-1">Interview Date</p>
+                                <p className="text-xs text-gray-500 uppercase mb-1">Submitted on</p>
                                 <p className="text-sm text-gray-800 font-medium">
-                                    {application.applied_at
-                                        ? new Date(application.applied_at).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                        })
-                                        : "Jul 30, 2021"}
+                                    {new Date(application.applied_at).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                    })}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* AI Score Widget */}
-                    <AIScoreWidget
-                        score={aiScore.score}
-                        label={aiScore.label}
-                        criteria={aiScore.criteria}
-                    />
+                    <AIScoreWidget score={aiScore.score} label={aiScore.label} criteria={aiScore.criteria} />
                 </div>
             </div>
         </div>

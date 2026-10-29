@@ -7,27 +7,8 @@ import StatusBadge from "../components/StatusBadge";
 import { getAIScore } from "../data/mockAIScores";
 import "react-toastify/dist/ReactToastify.css";
 import Pagination from "../components/Pagination";
-
-interface Application {
-  id: number;
-  job: {
-    id: number;
-    title: string;
-  } | number;
-  applicant: {
-    id: number;
-    user: {
-      first_name: string;
-      last_name: string;
-      email: string;
-    };
-    picture?: string;
-    skills?: string[];
-  } | number;
-  status: string;
-  applied_at: string;
-  resume?: string;
-}
+import ApplicationStatusControl from "../components/ApplicationStatusControl";
+import { Application } from "../api/services";
 
 export default function Candidates() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -58,39 +39,18 @@ export default function Candidates() {
     }
   };
 
-  const deleteApplication = async (appId: number) => {
-    if (!window.confirm("Are you sure you want to delete this candidate?")) return;
-
-    try {
-      await axios.delete(`/access/applications/${appId}/`);
-      toast.success("Candidate deleted successfully");
-      fetchApplications();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Failed to delete candidate");
-    }
+  // Replace one application in the list after its status changed
+  const handleStatusChanged = (updated: Application) => {
+    setApplications((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
   };
 
-  // Helper functions for safe data access
-  const getApplicantName = (app: Application) => {
-    if (typeof app.applicant === 'object' && app.applicant.user) {
-      return `${app.applicant.user.first_name} ${app.applicant.user.last_name}`;
-    }
-    return `Candidate #${typeof app.applicant === 'number' ? app.applicant : '?'}`;
-  };
+  // The API now sends the applicant's details with each application
+  const getApplicantName = (app: Application) =>
+    `${app.first_name ?? ""} ${app.last_name ?? ""}`.trim() || `Candidate #${app.applicant}`;
 
-  const getApplicantEmail = (app: Application) => {
-    if (typeof app.applicant === 'object' && app.applicant.user) {
-      return app.applicant.user.email;
-    }
-    return 'No email provided';
-  };
+  const getApplicantEmail = (app: Application) => app.email || "No email provided";
 
-  const getApplicantPicture = (app: Application) => {
-    if (typeof app.applicant === 'object' && app.applicant.picture) {
-      return app.applicant.picture;
-    }
-    return defpfp;
-  };
+  const getApplicantPicture = (app: Application) => app.picture || defpfp;
 
   const filteredApplications = applications
     .filter((app) => {
@@ -110,14 +70,14 @@ export default function Candidates() {
     currentPage * itemsPerPage
   );
 
+  const countOf = (status: string) => applications.filter((a) => a.status === status).length;
   const statuses = [
     { value: "all", label: "All", count: applications.length },
-    { value: "pending", label: "Pending", count: applications.filter(a => a.status === "pending").length },
-    { value: "under_review", label: "Under Review", count: applications.filter(a => a.status === "under_review").length },
-    { value: "shortlisted", label: "Shortlisted", count: applications.filter(a => a.status === "shortlisted").length },
-    { value: "interview_scheduled", label: "Interview", count: applications.filter(a => a.status === "interview_scheduled").length },
-    { value: "hired", label: "Hired", count: applications.filter(a => a.status === "hired").length },
-    { value: "rejected", label: "Rejected", count: applications.filter(a => a.status === "rejected").length },
+    { value: "submitted", label: "Submitted", count: countOf("submitted") },
+    { value: "under_review", label: "Under Review", count: countOf("under_review") },
+    { value: "shortlisted", label: "Shortlisted", count: countOf("shortlisted") },
+    { value: "accepted", label: "Accepted", count: countOf("accepted") },
+    { value: "rejected", label: "Rejected", count: countOf("rejected") },
   ];
 
   return (
@@ -201,10 +161,7 @@ export default function Candidates() {
                       Applied On
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Interview Round
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Assigned To
+                      Job Applied For
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Score
@@ -239,9 +196,6 @@ export default function Candidates() {
                               <div className="text-xs text-gray-500">
                                 {getApplicantEmail(app)}
                               </div>
-                              <div className="text-xs text-gray-400">
-                                UI Designer
-                              </div>
                             </div>
                           </div>
                         </td>
@@ -255,17 +209,7 @@ export default function Candidates() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          <span className="badge-blue">
-                            {app.status === "interview_scheduled" ? "Round 1" : "04/10"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold">
-                              E
-                            </div>
-                            <span className="text-sm text-gray-700">Engenu Hasen</span>
-                          </div>
+                          {app.job_title}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span
@@ -278,22 +222,21 @@ export default function Candidates() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={app.status || "pending"} />
+                          <StatusBadge status={app.status || "submitted"} />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-col items-center gap-2">
+                            <ApplicationStatusControl
+                              application={app}
+                              onChanged={handleStatusChanged}
+                              size="compact"
+                            />
                             <Link
                               to={`/candidates/${app.id}`}
-                              className="btn-success px-3 py-1 text-xs"
+                              className="text-xs text-blue-600 hover:underline"
                             >
-                              View
+                              View details
                             </Link>
-                            <button
-                              onClick={() => deleteApplication(app.id)}
-                              className="btn-danger px-3 py-1 text-xs"
-                            >
-                              Delete
-                            </button>
                           </div>
                         </td>
                       </tr>

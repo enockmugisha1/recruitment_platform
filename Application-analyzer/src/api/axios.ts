@@ -39,13 +39,15 @@ axiosInstance.interceptors.request.use(
       config.url?.includes(endpoint)
     );
     
-    // Add token for all requests except public GETs and auth endpoints
-    if (!isPublicGET && !isAuthEndpoint) {
+    // Add token for every request except auth endpoints. Public GETs (job
+    // listings) also carry the token when there is one, so the backend can
+    // tell a logged-in recruiter apart from an anonymous visitor and only
+    // return the jobs that recruiter posted.
+    if (!isAuthEndpoint) {
       const token = localStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('🔑 Token added to request:', config.url);
-      } else {
+      } else if (!isPublicGET) {
         console.warn('⚠️ No token found for protected request:', config.url);
       }
     }

@@ -162,7 +162,14 @@ export const applicationService = {
     return response.data;
   },
 
-  // Delete application
+  // Recruiter: move an application along the review pipeline
+  // (submitted -> under_review -> shortlisted -> accepted, or rejected)
+  updateApplicationStatus: async (applicationId: number, status: ApplicationStatus) => {
+    const response = await axios.post(`/access/applications/${applicationId}/status/`, { status });
+    return response.data as Application;
+  },
+
+  // Delete (withdraw) application — applicant only, while still "submitted"
   deleteApplication: async (applicationId: number) => {
     const response = await axios.delete(`/access/applications/${applicationId}/`);
     return response.data;
@@ -314,16 +321,41 @@ export interface Job {
   recruiter: number;
 }
 
+export type ApplicationStatus =
+  | 'submitted'
+  | 'under_review'
+  | 'shortlisted'
+  | 'accepted'
+  | 'rejected';
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  submitted: 'Submitted',
+  under_review: 'Under Review',
+  shortlisted: 'Shortlisted',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+};
+
 export interface Application {
   id: number;
   job: number | Job;
+  job_title: string;
   applicant: number;
+  // Applicant info sent along with the submission
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
+  location?: string;
+  years_of_experience?: number;
+  education?: string;
+  linkedin?: string | null;
+  picture?: string | null;
   resume: string;
-  cover_letter?: string;
-  status: 'pending' | 'submitted' | 'reviewing' | 'under_review' | 'shortlisted' | 'rejected' | 'accepted';
+  cover_letter?: string | null;
+  status: ApplicationStatus;
+  // What the recruiter may move this application to from its current status
+  allowed_next_statuses: ApplicationStatus[];
   applied_at: string;
   submitted_at: string;
 }
@@ -338,9 +370,15 @@ export interface JobSeekerProfile {
   institution_or_company: string;
   years_of_experience: number;
   phone: string;
-  gender: string;
+  gender: 'M' | 'F' | 'N' | '';  // Male, Female, Prefer not to say
+  date_of_birth?: string | null;
   website?: string;
+  linkedin?: string;
   picture?: string;
+  // Read-only, taken from the user account
+  first_name?: string;
+  last_name?: string;
+  email?: string;
   created_at: string;
   updated_at: string;
 }

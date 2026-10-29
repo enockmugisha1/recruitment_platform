@@ -3,14 +3,36 @@ from rest_framework.decorators import action
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
-from .serializers import JobSeekerApplicationSerializer, JobSerializer, CalendarEventSerializer
+from .serializers import (
+    JobSeekerApplicationSerializer, JobSerializer, CalendarEventSerializer,
+    ApplicationStatusSerializer,
+)
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from .models import JobSeekerApplication, Job, CalendarEvent
 from .permissions import IsJobPoster, IsJobApplicant
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+
+def _recruiter_profile(user):
+    """Return the user's RecruiterProfile, or None if they are not a recruiter."""
+    if not user or not user.is_authenticated or getattr(user, 'role', None) != 'recruiter':
+        return None
+    try:
+        return user.recruiter_profile
+    except Exception:
+        return None
+
+
+def _job_seeker_profile(user):
+    if not user or not user.is_authenticated or getattr(user, 'role', None) != 'job_seeker':
+        return None
+    try:
+        return user.job_seeker_profile
+    except Exception:
+        return None
+
 
 # Job view
 class JobViewSet(viewsets.ModelViewSet):
@@ -29,16 +51,26 @@ class JobViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve', 'search_jobs', 'statistics']:
             # Public access for viewing jobs
             return []
-        else:
-            # Only require authentication, no role check
-            return [IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            # Only the recruiter who posted the job may change or delete it
+            return [IsAuthenticated(), IsJobPoster()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         """
         Filter jobs by job_type, location, and active deadline
         """
         queryset = super().get_queryset()
-        
+
+        # A logged-in recruiter only ever sees the jobs they posted.
+        # Job seekers and anonymous visitors still see every job.
+        user = self.request.user
+        if user.is_authenticated and getattr(user, 'role', None) == 'recruiter':
+            profile = _recruiter_profile(user)
+            if profile is None:
+                return queryset.none()
+            queryset = queryset.filter(recruiter=profile)
+
         # Filter by job type
         job_type = self.request.query_params.get('job_type', None)
         if job_type:
@@ -58,10 +90,12 @@ class JobViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        if getattr(self.request.user, 'role', None) != 'recruiter':
+            raise PermissionDenied("Only recruiters can post jobs.")
         # Create recruiter profile if it doesn't exist
         try:
             recruiter_profile = self.request.user.recruiter_profile
-        except AttributeError:
+        except Exception:
             from profiles.models import RecruiterProfile
             recruiter_profile = RecruiterProfile.objects.create(user=self.request.user)
         
@@ -124,15 +158,19 @@ class JobViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def statistics(self, request):
         """Get job statistics"""
-        total_jobs = Job.objects.count()
-        active_jobs = Job.objects.filter(deadline__gte=timezone.now().date()).count()
-        total_applications = JobSeekerApplication.objects.count()
-        
+        jobs = Job.objects.all()
+        applications = JobSeekerApplication.objects.all()
+        # Recruiters only get numbers for what they posted
+        if request.user.is_authenticated and getattr(request.user, 'role', None) == 'recruiter':
+            profile = _recruiter_profile(request.user)
+            jobs = jobs.filter(recruiter=profile) if profile else jobs.none()
+            applications = applications.filter(job__recruiter=profile) if profile else applications.none()
+
         return Response({
-            'total_jobs': total_jobs,
-            'active_jobs': active_jobs,
-            'total_applications': total_applications,
-            'by_job_type': list(Job.objects.values('job_type').annotate(count=Count('id')))
+            'total_jobs': jobs.count(),
+            'active_jobs': jobs.filter(deadline__gte=timezone.now().date()).count(),
+            'total_applications': applications.count(),
+            'by_job_type': list(jobs.values('job_type').annotate(count=Count('id')))
         })
 
     @swagger_auto_schema(
@@ -180,37 +218,125 @@ class JobViewSet(viewsets.ModelViewSet):
 
 # Job seeker application view
 class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]  # Anyone can access
+    """
+    Visibility rules (enforced here, not in the UI):
+      * recruiter  -> only applications submitted to jobs THEY posted
+      * job seeker -> only their own applications
+      * anyone else -> nothing
+    Recruiters move an application through the review pipeline with
+    POST/PATCH /applications/{id}/status/ ; they cannot edit the
+    applicant's files, and applicants cannot change their own status.
+    """
+    permission_classes = [IsAuthenticated]
     serializer_class = JobSeekerApplicationSerializer
     queryset = JobSeekerApplication.objects.select_related('applicant__user', 'job__recruiter').all()
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['applied_at', 'status']
     ordering = ['-applied_at']
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
         # Handle swagger schema generation
         if getattr(self, 'swagger_fake_view', False):
             return JobSeekerApplication.objects.none()
-        
-        # Show all applications to everyone
-        queryset = JobSeekerApplication.objects.all()
-        
-        # Filter by status
-        status_filter = self.request.query_params.get('status', None)
+
+        user = self.request.user
+        base = JobSeekerApplication.objects.select_related(
+            'applicant__user', 'job__recruiter'
+        )
+
+        recruiter = _recruiter_profile(user)
+        seeker = _job_seeker_profile(user)
+        if recruiter is not None:
+            queryset = base.filter(job__recruiter=recruiter)
+        elif getattr(user, 'role', None) == 'recruiter':
+            queryset = base.none()  # recruiter with no profile yet has no jobs
+        elif seeker is not None:
+            queryset = base.filter(applicant=seeker)
+        else:
+            queryset = base.none()
+
+        status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
+
+        job_id = self.request.query_params.get('job_id') or self.request.query_params.get('job')
+        if job_id and str(job_id).isdigit():
+            queryset = queryset.filter(job_id=int(job_id))
+
         return queryset
 
     def perform_create(self, serializer):
-        # Create job seeker profile if it doesn't exist
+        user = self.request.user
+        if getattr(user, 'role', None) != 'job_seeker':
+            raise PermissionDenied("Only job seekers can apply for jobs.")
+
         try:
-            job_seeker_profile = self.request.user.job_seeker_profile
-        except AttributeError:
+            job_seeker_profile = user.job_seeker_profile
+        except Exception:
             from profiles.models import JobSeekerProfile
-            job_seeker_profile = JobSeekerProfile.objects.create(user=self.request.user)
-        
+            job_seeker_profile = JobSeekerProfile.objects.create(user=user)
+
+        job = serializer.validated_data['job']
+        if JobSeekerApplication.objects.filter(job=job, applicant=job_seeker_profile).exists():
+            raise ValidationError({'job': 'You have already applied for this job.'})
+
+        # status is read-only on the serializer, so every submission starts
+        # at the model default: "submitted".
         serializer.save(applicant=job_seeker_profile)
+
+    def _require_owner_applicant(self, instance):
+        """Edit/withdraw is for the applicant, and only until review starts."""
+        seeker = _job_seeker_profile(self.request.user)
+        if seeker is None or instance.applicant_id != seeker.id:
+            raise PermissionDenied("Only the applicant can change or withdraw this application.")
+        if instance.status != 'submitted':
+            raise PermissionDenied("This application is already being reviewed and can no longer be changed.")
+
+    def perform_update(self, serializer):
+        self._require_owner_applicant(serializer.instance)
+        # the job an application belongs to cannot be switched after submitting
+        serializer.save(job=serializer.instance.job)
+
+    def perform_destroy(self, instance):
+        self._require_owner_applicant(instance)
+        instance.delete()
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=ApplicationStatusSerializer,
+        operation_summary="Change application status (recruiter)",
+        operation_description="Move an application along the review pipeline. "
+                              "submitted -> under_review -> shortlisted -> accepted; rejected is allowed along the way.",
+    )
+    @swagger_auto_schema(
+        method='patch',
+        request_body=ApplicationStatusSerializer,
+        operation_summary="Change application status (recruiter)",
+    )
+    @action(detail=True, methods=['post', 'patch'], url_path='status')
+    def change_status(self, request, pk=None):
+        # get_object() uses the scoped queryset, so a recruiter asking about
+        # someone else's application gets a 404, not a status change.
+        application = self.get_object()
+
+        if _recruiter_profile(request.user) is None:
+            raise PermissionDenied("Only the recruiter who posted this job can change its status.")
+
+        serializer = ApplicationStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data['status']
+
+        allowed = JobSeekerApplication.ALLOWED_TRANSITIONS.get(application.status, [])
+        if new_status not in allowed:
+            raise ValidationError({
+                'status': f"Cannot move from '{application.status}' to '{new_status}'. "
+                          f"Allowed: {', '.join(allowed) if allowed else 'none (final status)'}."
+            })
+
+        application.status = new_status
+        application.save(update_fields=['status'])
+        return Response(self.get_serializer(application).data)
 
     @swagger_auto_schema(
         operation_description="List all job applications of the job seeker. Can filter by status.",
