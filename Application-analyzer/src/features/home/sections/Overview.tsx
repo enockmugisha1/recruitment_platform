@@ -70,14 +70,14 @@ export default function Overview() {
       ).length;
 
       // Count application statuses
-      const pending = applications.filter((a: any) => a.status === 'pending').length;
+      const pending = applications.filter((a: any) => a.status === 'submitted').length;
       const shortlisted = applications.filter((a: any) => a.status === 'shortlisted').length;
-      const hired = applications.filter((a: any) => a.status === 'hired').length;
+      const hired = applications.filter((a: any) => a.status === 'accepted').length;
       const rejected = applications.filter((a: any) => a.status === 'rejected').length;
 
       setStats({
         interviews_scheduled: interviewsScheduled,
-        feedback_pending: applications.filter((a: any) => a.status === 'interview_scheduled').length,
+        feedback_pending: applications.filter((a: any) => a.status === 'under_review').length,
         approvals_pending: pending,
         active_jobs: jobsData.active_jobs || 0,
         total_applications: applications.length,

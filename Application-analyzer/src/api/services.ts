@@ -305,6 +305,81 @@ export const aiResumeService = {
   },
 };
 
+// ============= BUSINESS (ThinkGreen Afrika) + COMPANY SERVICES =============
+export interface Company {
+  id: number;
+  name: string;
+  website?: string | null;
+  description?: string;
+  location?: string;
+  contact_email?: string;
+  logo?: string | null;
+  is_active: boolean;
+  recruiter_count?: number;
+  job_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecruiterMember {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_company_admin: boolean;
+  is_active: boolean;
+  // still on the temporary password => has not set their own yet
+  password_change_pending: boolean;
+  last_login: string | null;
+  jobs_posted: number;
+  created_at: string;
+}
+
+export interface NewRecruiter {
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_company_admin: boolean;
+}
+
+/** Returned when a recruiter is created or their password is reset. */
+export interface RecruiterCredentials {
+  recruiter: RecruiterMember;
+  temporary_password: string;
+  email_sent: boolean;
+}
+
+// Team endpoints are the same shape for the business (any company) and for a
+// company admin (their own company); only the base path differs.
+const teamApi = (base: string) => ({
+  list: async (): Promise<RecruiterMember[]> => (await axios.get(`${base}/`)).data,
+  add: async (data: NewRecruiter): Promise<RecruiterCredentials> => (await axios.post(`${base}/`, data)).data,
+  update: async (id: number, data: Partial<Pick<RecruiterMember, 'is_company_admin' | 'is_active'>>): Promise<RecruiterMember> =>
+    (await axios.patch(`${base}/${id}/`, data)).data,
+  resetPassword: async (id: number): Promise<RecruiterCredentials> =>
+    (await axios.post(`${base}/${id}/reset-password/`)).data,
+});
+
+export type TeamApi = ReturnType<typeof teamApi>;
+
+export const businessService = {
+  listCompanies: async (params?: { search?: string }) => {
+    const data = (await axios.get('/business/companies/', { params })).data;
+    return (data.results ?? data) as Company[];
+  },
+  getCompany: async (id: number): Promise<Company> => (await axios.get(`/business/companies/${id}/`)).data,
+  createCompany: async (data: Partial<Company>): Promise<Company> => (await axios.post('/business/companies/', data)).data,
+  updateCompany: async (id: number, data: Partial<Company>): Promise<Company> =>
+    (await axios.patch(`/business/companies/${id}/`, data)).data,
+  team: (companyId: number) => teamApi(`/business/companies/${companyId}/recruiters`),
+};
+
+export const companyService = {
+  getMine: async (): Promise<Company & { is_company_admin: boolean }> => (await axios.get('/company/me/')).data,
+  updateMine: async (data: Partial<Company>): Promise<Company> => (await axios.patch('/company/me/', data)).data,
+  team: teamApi('/company/team'),
+};
+
 // ============= TYPES =============
 export interface Job {
   id: number;
@@ -319,6 +394,10 @@ export interface Job {
   created_at: string;
   updated_at: string;
   recruiter: number;
+  // The company the job belongs to (every recruiter of it can manage the job)
+  company?: number | null;
+  company_name?: string | null;
+  posted_by?: string;
 }
 
 export type ApplicationStatus =
@@ -336,6 +415,13 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   rejected: 'Rejected',
 };
 
+export interface StatusHistoryEntry {
+  status: ApplicationStatus;
+  changed_at: string;
+  // Only sent to recruiters
+  changed_by?: string | null;
+}
+
 export interface Application {
   id: number;
   job: number | Job;
@@ -351,6 +437,15 @@ export interface Application {
   education?: string;
   linkedin?: string | null;
   picture?: string | null;
+  // Personal details from the applicant's profile
+  nationality?: string;
+  bio?: string;
+  institution_or_company?: string;
+  gender?: string;
+  date_of_birth?: string | null;
+  website?: string | null;
+  company_name?: string | null;
+  status_history?: StatusHistoryEntry[];
   resume: string;
   cover_letter?: string | null;
   status: ApplicationStatus;

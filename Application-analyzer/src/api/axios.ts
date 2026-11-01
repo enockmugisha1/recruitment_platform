@@ -79,6 +79,21 @@ axiosInstance.interceptors.response.use(
       originalRequest.url?.includes(endpoint)
     );
 
+    // The server refuses everything except "change password" while a user is
+    // still on a temporary password; send them to that screen.
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'password_change_required' &&
+      window.location.pathname !== '/change-password'
+    ) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...stored, must_change_password: true }));
+      } catch (e) { /* ignore */ }
+      window.location.href = '/change-password';
+      return Promise.reject(error);
+    }
+
     // If error is 401, not a public endpoint, and we haven't tried to refresh yet
     if (error.response?.status === 401 && !isPublicEndpoint && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -107,10 +122,14 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
         
       } catch (refreshError) {
-        // Refresh failed - logout user
+        // Refresh failed - logout user (business users have their own login page)
+        let loginPath = '/login';
+        try {
+          if (JSON.parse(localStorage.getItem('user') || '{}').role === 'business') loginPath = '/business/login';
+        } catch (e) { /* ignore */ }
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = '/login';
+        window.location.href = loginPath;
         return Promise.reject(refreshError);
       }
     }

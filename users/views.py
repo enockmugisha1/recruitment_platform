@@ -8,10 +8,10 @@ from datetime import timedelta
 from .serializers import (
     RegisterUserSerializer, UpdateUserSerializer, LoginUserSerializer, 
     LogoutUserSerializer, OTPRequestSerializer, OTPVerifySerializer,
-    PasswordResetSerializer
+    PasswordResetSerializer, ChangePasswordSerializer
 )
 from .models import OTP
-from .utils import hash_otp, generate_otp, verify_otp_hash, check_rate_limit, log_security_event
+from .utils import hash_otp, generate_otp, verify_otp_hash, check_rate_limit, log_security_event, build_user_data
 from .throttling import LoginThrottle, RegistrationThrottle, OTPRequestThrottle, OTPVerifyThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
@@ -143,18 +143,33 @@ class LoginUserView(views.APIView):
                 
                 # Verify password
                 if user.check_password(user_password):
+                    # Deactivated accounts (and recruiters of a deactivated
+                    # company) are refused even with the right password.
+                    if not user.is_active:
+                        log_security_event("LOGIN_INACTIVE", user_email, "Login on deactivated account", "WARNING")
+                        return Response(
+                            {"error": "This account has been deactivated. Please contact your company administrator."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                    if user.role == 'recruiter':
+                        profile = getattr(user, 'recruiter_profile', None)
+                        if profile is None or profile.company_id is None:
+                            return Response(
+                                {"error": "Your account is not linked to a company yet. Please contact ThinkGreen Afrika."},
+                                status=status.HTTP_403_FORBIDDEN
+                            )
+                        if not profile.company.is_active:
+                            return Response(
+                                {"error": "Your company's account is currently inactive. Please contact ThinkGreen Afrika."},
+                                status=status.HTTP_403_FORBIDDEN
+                            )
+
                     # Reset failed attempts
                     user.failed_login_attempts = 0
                     user.last_login_ip = get_client_ip(request)
                     user.save(update_fields=['failed_login_attempts', 'last_login_ip'])
                     
-                    user_data = {
-                        "email": user.email,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "role": user.role,
-                        "is_email_verified": user.is_email_verified,
-                    }
+                    user_data = build_user_data(user)
 
                     # Generate JWT tokens
                     refresh = RefreshToken.for_user(user)
@@ -202,6 +217,57 @@ class LoginUserView(views.APIView):
                 {"error": "Login failed. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class MeView(views.APIView):
+    """Current account details (role, company, whether a password change is pending)."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(operation_summary="Current user", responses={200: 'User details'})
+    def get(self, request):
+        return Response(build_user_data(request.user))
+
+
+class ChangePasswordView(views.APIView):
+    """
+    Change your own password. This is the one thing a recruiter on a
+    temporary password is allowed to do; it clears ``must_change_password``.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Change password",
+        operation_description="Change the logged-in user's password. Required on first login for accounts created with a temporary password.",
+        request_body=ChangePasswordSerializer,
+        responses={200: 'Password changed', 400: 'Validation error'}
+    )
+    def post(self, request):
+        user = request.user
+
+        if not check_rate_limit(f"pwchange:{user.email}", limit=10, period=3600):
+            return Response(
+                {"error": "Too many attempts. Please try again later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if not user.check_password(serializer.validated_data['current_password']):
+            return Response(
+                {"current_password": ["Your current password is incorrect."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.must_change_password = False
+        user.save(update_fields=['password', 'must_change_password'])
+        log_security_event("PASSWORD_CHANGED", user.email, "User changed their password")
+
+        return Response({
+            "message": "Password changed successfully.",
+            "user_data": build_user_data(user),
+        })
+
 
 class UpdateUserView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -287,6 +353,13 @@ class DeleteUserView(views.APIView):
     def delete(self, request):
         try:
             instance = request.user
+            if instance.role in ('recruiter', 'business'):
+                # Deleting a recruiter would also delete the company's jobs they
+                # posted (and every application on them).
+                return Response(
+                    {"error": "This account cannot be deleted here. Ask your company administrator or ThinkGreen Afrika to deactivate it."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             email = instance.email
             instance.delete()
             
@@ -502,6 +575,7 @@ class PasswordResetView(views.APIView):
             user.set_password(new_password)
             user.failed_login_attempts = 0
             user.account_locked_until = None
+            user.must_change_password = False
             user.save()
             
             # Mark OTP as used

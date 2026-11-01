@@ -3,7 +3,7 @@ import pfpImg from "../assets/pfp.png";
 import { useEffect, useState } from "react";
 import AdminSidebar from "../components/AdminSidebar";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
-import { getCurrentUser, clearSession, CurrentUser } from "../utils/auth";
+import { getCurrentUser, clearSession, CurrentUser, homeForRole } from "../utils/auth";
 
 /**
  * Used for routes that both recruiters and job seekers can reach
@@ -22,6 +22,14 @@ export default function SharedLayout() {
         const current = getCurrentUser();
         if (!current) {
             navigate("/login", { replace: true });
+            return;
+        }
+        if (current.must_change_password) {
+            navigate("/change-password", { replace: true });
+            return;
+        }
+        if (current.role === "business") {
+            navigate(homeForRole(current.role), { replace: true });
             return;
         }
         setUser(current);
@@ -45,7 +53,7 @@ export default function SharedLayout() {
     const accent = isRecruiter ? "green" : "emerald";
     const homePath = isRecruiter ? "/" : "/dashboard";
     const brandIcon = isRecruiter ? "fa-users-gear" : "fa-briefcase";
-    const brandLabel = isRecruiter ? "RecruiterPro" : "JobSeeker";
+    const brandLabel = isRecruiter ? "ThinkGreen Afrika" : "JobSeeker";
     const roleLabel = isRecruiter ? "Recruiter" : "Job Seeker";
 
     return (

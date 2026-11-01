@@ -1,5 +1,12 @@
 import { jwtDecode } from "jwt-decode";
 
+export type Role = "job_seeker" | "recruiter" | "business";
+
+export interface CompanyInfo {
+  id: number;
+  name: string;
+}
+
 export interface CurrentUser {
   user_id?: string;
   email?: string;
@@ -7,7 +14,51 @@ export interface CurrentUser {
   last_name?: string;
   role?: string;
   exp?: number;
+  // True while the user is still on a temporary password (new recruiters)
+  must_change_password?: boolean;
+  // Recruiters belong to a company; company admins can manage its team
+  company?: CompanyInfo | null;
+  is_company_admin?: boolean;
   [key: string]: any;
+}
+
+/** Where each kind of user lands after logging in. */
+export function homeForRole(role?: string): string {
+  if (role === "business") return "/business";
+  if (role === "recruiter") return "/";
+  return "/dashboard";
+}
+
+/** Which login screen each kind of user belongs on. */
+export function loginForRole(role?: string): string {
+  return role === "business" ? "/business/login" : "/login";
+}
+
+/** Merge new fields into the stored user (e.g. after the password was changed). */
+export function updateStoredUser(patch: Partial<CurrentUser>) {
+  const storedStr = localStorage.getItem("user");
+  let stored: CurrentUser = {};
+  try {
+    stored = storedStr ? JSON.parse(storedStr) : {};
+  } catch (e) {
+    stored = {};
+  }
+  localStorage.setItem("user", JSON.stringify({ ...stored, ...patch }));
+}
+
+/**
+ * Store a successful login. The refresh token goes to localStorage when
+ * "remember me" is ticked, otherwise it only lives for this browser session.
+ */
+export function saveSession(data: { access: string; refresh: string; user_data: CurrentUser }, remember = false) {
+  localStorage.setItem("accessToken", data.access);
+  if (remember) {
+    localStorage.setItem("refreshToken", data.refresh);
+  } else {
+    sessionStorage.setItem("refreshToken", data.refresh);
+  }
+  localStorage.setItem("email", data.user_data.email || "");
+  localStorage.setItem("user", JSON.stringify(data.user_data));
 }
 
 /**

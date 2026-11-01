@@ -91,6 +91,10 @@ class JobSeekerProfileViewSet(viewsets.ModelViewSet):
 # Recruiter view
 class RecruiterProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser | IsRecruiter | IsStaff]
+    # Recruiter profiles are created when the business / a company admin adds the
+    # recruiter, and are deactivated rather than deleted (deleting one would also
+    # delete the jobs they posted), so only read and edit are exposed here.
+    http_method_names = ['get', 'put', 'patch', 'head', 'options']
     serializer_class = RecruiterProfileSerializer
     queryset = RecruiterProfile.objects.all()
 

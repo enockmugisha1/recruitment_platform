@@ -112,8 +112,14 @@ export default function Settings() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-2">Password</h2>
         <p className="text-sm text-gray-600 mb-4">
-          To change your password, use the password reset flow.
+          Change it any time with your current password, or use the reset flow if you've forgotten it.
         </p>
+        <button
+          onClick={() => navigate("/change-password")}
+          className="px-5 py-2.5 mr-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition"
+        >
+          Change Password
+        </button>
         <button
           onClick={() => navigate("/forgot-password")}
           className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"

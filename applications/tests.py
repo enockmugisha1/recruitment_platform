@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import timedelta
 from applications.models import Job, JobSeekerApplication
-from profiles.models import JobSeekerProfile, RecruiterProfile
+from profiles.models import JobSeekerProfile, RecruiterProfile, Company
 
 User = get_user_model()
 
@@ -182,33 +182,39 @@ class JobSeekerApplicationModelTest(TestCase):
             )
 
 # ---------------------------------------------------------------------------
-# Recruiter scoping + application review flow
+# Company scoping + application review flow
 # ---------------------------------------------------------------------------
 from rest_framework.test import APIClient
+from applications.models import ApplicationStatusEvent
 
 
 class ApplicationFlowTests(TestCase):
     """
     * submission carries the applicant's info and starts at "submitted"
-    * recruiter moves it submitted -> under_review -> shortlisted -> accepted
-    * a recruiter only ever sees what they posted
+    * a recruiter moves it submitted -> under_review -> shortlisted -> accepted
+    * every recruiter of a COMPANY shares that company's jobs and applications,
+      and recruiters of other companies see none of them
     """
 
     def setUp(self):
         deadline = timezone.now().date() + timedelta(days=30)
 
-        def make_recruiter(email, company):
+        self.co_a = Company.objects.create(name='Company A')
+        self.co_b = Company.objects.create(name='Company B')
+
+        def make_recruiter(email, company, first='Rec'):
             user = User.objects.create_user(email=email, password='pass12345', role='recruiter',
-                                            first_name='Rec', last_name=company)
-            profile = RecruiterProfile.objects.create(user=user, company_name=company)
+                                            first_name=first, last_name=company.name)
+            profile = RecruiterProfile.objects.create(user=user, company=company, company_name=company.name)
             return user, profile
 
-        self.rec_a, self.prof_a = make_recruiter('a@x.com', 'A')
-        self.rec_b, self.prof_b = make_recruiter('b@x.com', 'B')
+        self.rec_a, self.prof_a = make_recruiter('a@x.com', self.co_a, 'Ann')
+        self.rec_a2, self.prof_a2 = make_recruiter('a2@x.com', self.co_a, 'Alex')   # colleague
+        self.rec_b, self.prof_b = make_recruiter('b@x.com', self.co_b, 'Bob')
 
         def make_job(profile, title):
-            return Job.objects.create(recruiter=profile, title=title, description='d',
-                                      requirements='r', location='Kigali',
+            return Job.objects.create(recruiter=profile, company=profile.company, title=title,
+                                      description='d', requirements='r', location='Kigali',
                                       job_type='full_time', deadline=deadline)
 
         self.job_a = make_job(self.prof_a, 'Job A')
@@ -217,18 +223,20 @@ class ApplicationFlowTests(TestCase):
         self.seeker = User.objects.create_user(email='s@x.com', password='pass12345',
                                                role='job_seeker', first_name='Sam', last_name='Seeker')
         self.seeker_profile = JobSeekerProfile.objects.create(
-            user=self.seeker, location='Kigali', gender='N', phone='0788', years_of_experience=3)
+            user=self.seeker, location='Kigali', gender='N', phone='0788', years_of_experience=3,
+            nationality='Rwandan', bio='Hello there', institution_or_company='ACME')
 
         self.client = APIClient()
 
     def _apply(self, job):
         self.client.force_authenticate(self.seeker)
         resume = SimpleUploadedFile('cv.pdf', b'%PDF-1.4 test', content_type='application/pdf')
-        # try to sneak in a status — must be ignored
+        # try to sneak in a status - must be ignored
         return self.client.post('/access/applications/',
                                 {'job': job.id, 'resume': resume, 'status': 'accepted'},
                                 format='multipart')
 
+    # ---- submission ----
     def test_submission_includes_info_and_starts_submitted(self):
         res = self._apply(self.job_a)
         self.assertEqual(res.status_code, 201, res.data)
@@ -236,13 +244,20 @@ class ApplicationFlowTests(TestCase):
         self.assertEqual(res.data['first_name'], 'Sam')
         self.assertEqual(res.data['email'], 's@x.com')
         self.assertEqual(res.data['job_title'], 'Job A')
+        self.assertEqual(res.data['company_name'], 'Company A')
         self.assertEqual(res.data['phone'], '0788')
-        self.assertEqual(res.data['allowed_next_statuses'], ['under_review', 'rejected'])
+        # personal details
+        self.assertEqual(res.data['nationality'], 'Rwandan')
+        self.assertEqual(res.data['bio'], 'Hello there')
+        self.assertEqual(res.data['institution_or_company'], 'ACME')
+        self.assertEqual(res.data['gender'], 'Prefer not to say')
+        # an applicant can never move their own application on
+        self.assertEqual(res.data['allowed_next_statuses'], [])
+        self.assertEqual([h['status'] for h in res.data['status_history']], ['submitted'])
 
     def test_cannot_apply_twice(self):
         self._apply(self.job_a)
-        res = self._apply(self.job_a)
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(self._apply(self.job_a).status_code, 400)
 
     def test_recruiter_cannot_apply(self):
         self.client.force_authenticate(self.rec_a)
@@ -251,46 +266,69 @@ class ApplicationFlowTests(TestCase):
                                format='multipart')
         self.assertEqual(res.status_code, 403)
 
-    def test_recruiter_sees_only_own_applications(self):
+    def test_cannot_apply_to_inactive_company_job(self):
+        self.co_a.is_active = False
+        self.co_a.save()
+        self.assertEqual(self._apply(self.job_a).status_code, 400)
+
+    # ---- company scoping ----
+    def test_recruiters_share_their_company_applications_but_not_others(self):
         app_a = self._apply(self.job_a).data['id']
         app_b = self._apply(self.job_b).data['id']
 
-        self.client.force_authenticate(self.rec_a)
-        ids = [a['id'] for a in self.client.get('/access/applications/').data['results']]
-        self.assertEqual(ids, [app_a])
-        self.assertEqual(self.client.get(f'/access/applications/{app_b}/').status_code, 404)
+        for colleague in (self.rec_a, self.rec_a2):
+            self.client.force_authenticate(colleague)
+            ids = [a['id'] for a in self.client.get('/access/applications/').data['results']]
+            self.assertEqual(ids, [app_a])
+            self.assertEqual(self.client.get(f'/access/applications/{app_b}/').status_code, 404)
 
-    def test_status_flow_and_isolation(self):
-        app_id = self._apply(self.job_a).data['id']
-
-        # recruiter B (not the poster) cannot touch it
         self.client.force_authenticate(self.rec_b)
-        res = self.client.post(f'/access/applications/{app_id}/status/', {'status': 'under_review'})
-        self.assertEqual(res.status_code, 404)
+        ids = [a['id'] for a in self.client.get('/access/applications/').data['results']]
+        self.assertEqual(ids, [app_b])
 
-        # recruiter A walks it through the pipeline
-        self.client.force_authenticate(self.rec_a)
+    def test_status_flow_colleague_can_move_other_company_cannot(self):
+        app_id = self._apply(self.job_a).data['id']
         url = f'/access/applications/{app_id}/status/'
+
+        # recruiter of ANOTHER company: not found
+        self.client.force_authenticate(self.rec_b)
+        self.assertEqual(self.client.post(url, {'status': 'under_review'}).status_code, 404)
+
         # can't skip straight to accepted
+        self.client.force_authenticate(self.rec_a)
         self.assertEqual(self.client.post(url, {'status': 'accepted'}).status_code, 400)
-        for nxt in ['under_review', 'shortlisted', 'accepted']:
+
+        # Ann starts the review, her colleague Alex carries it on
+        res = self.client.post(url, {'status': 'under_review'})
+        self.assertEqual(res.status_code, 200, res.data)
+        self.client.force_authenticate(self.rec_a2)
+        for nxt in ['shortlisted', 'accepted']:
             res = self.client.post(url, {'status': nxt})
             self.assertEqual(res.status_code, 200, res.data)
             self.assertEqual(res.data['status'], nxt)
         # accepted is final
         self.assertEqual(self.client.post(url, {'status': 'rejected'}).status_code, 400)
 
-        # the applicant sees the new status
+        # history records who moved it (visible to recruiters)
+        history = res.data['status_history']
+        self.assertEqual([h['status'] for h in history],
+                         ['submitted', 'under_review', 'shortlisted', 'accepted'])
+        self.assertEqual(history[1]['changed_by'], 'Ann Company A')
+        self.assertEqual(history[2]['changed_by'], 'Alex Company A')
+
+        # the applicant sees the new status and the timeline, but not who did it
         self.client.force_authenticate(self.seeker)
-        mine = self.client.get('/access/applications/').data['results']
-        self.assertEqual(mine[0]['status'], 'accepted')
+        mine = self.client.get('/access/applications/').data['results'][0]
+        self.assertEqual(mine['status'], 'accepted')
+        self.assertEqual(len(mine['status_history']), 4)
+        self.assertNotIn('changed_by', mine['status_history'][1])
 
     def test_applicant_cannot_change_status(self):
         app_id = self._apply(self.job_a).data['id']
         self.client.force_authenticate(self.seeker)
         res = self.client.post(f'/access/applications/{app_id}/status/', {'status': 'accepted'})
         self.assertEqual(res.status_code, 403)
-        res = self.client.patch(f'/access/applications/{app_id}/', {'status': 'accepted'}, format='json')
+        self.client.patch(f'/access/applications/{app_id}/', {'status': 'accepted'}, format='json')
         self.assertEqual(JobSeekerApplication.objects.get(id=app_id).status, 'submitted')
 
     def test_recruiter_cannot_delete_application(self):
@@ -298,18 +336,42 @@ class ApplicationFlowTests(TestCase):
         self.client.force_authenticate(self.rec_a)
         self.assertEqual(self.client.delete(f'/access/applications/{app_id}/').status_code, 403)
 
-    def test_recruiter_job_list_is_scoped_but_public_is_not(self):
-        self.client.force_authenticate(self.rec_a)
+    # ---- jobs ----
+    def test_job_list_is_company_scoped_but_public_is_not(self):
+        self.client.force_authenticate(self.rec_a2)   # colleague of the poster
         titles = [j['title'] for j in self.client.get('/access/jobs/').data['results']]
         self.assertEqual(titles, ['Job A'])
+        self.assertEqual(self.client.get(f'/access/jobs/{self.job_b.id}/').status_code, 404)
 
         self.client.force_authenticate(self.seeker)
         self.assertEqual(len(self.client.get('/access/jobs/').data['results']), 2)
-
         self.client.force_authenticate(None)
         self.assertEqual(len(self.client.get('/access/jobs/').data['results']), 2)
 
-    def test_only_poster_can_edit_or_delete_job(self):
+    def test_inactive_company_jobs_hidden_from_public(self):
+        self.co_b.is_active = False
+        self.co_b.save()
+        self.client.force_authenticate(self.seeker)
+        titles = [j['title'] for j in self.client.get('/access/jobs/').data['results']]
+        self.assertEqual(titles, ['Job A'])
+
+    def test_new_job_belongs_to_the_recruiters_company(self):
+        self.client.force_authenticate(self.rec_a2)
+        res = self.client.post('/access/jobs/', {
+            'title': 'New role', 'description': 'd', 'requirements': 'r', 'location': 'Kigali',
+            'job_type': 'full_time',
+            'deadline': (timezone.now().date() + timedelta(days=10)).isoformat(),
+        }, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data['company'], self.co_a.id)
+        self.assertEqual(res.data['company_name'], 'Company A')
+        self.assertEqual(res.data['posted_by'], 'Alex Company A')
+
+    def test_colleague_can_edit_job_other_company_cannot(self):
+        self.client.force_authenticate(self.rec_a2)
+        res = self.client.patch(f'/access/jobs/{self.job_a.id}/', {'title': 'Renamed'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+
         self.client.force_authenticate(self.rec_b)
         self.assertEqual(self.client.delete(f'/access/jobs/{self.job_a.id}/').status_code, 404)
         self.client.force_authenticate(self.seeker)

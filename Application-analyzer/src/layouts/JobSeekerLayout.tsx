@@ -15,7 +15,7 @@ export default function JobSeekerLayout() {
     // Only job seekers may render this layout. Nothing below renders until
     // the check resolves, so there's no flash of recruiter content before
     // bouncing here (that flash was the actual bug being reported).
-    const { status, user } = useRoleGuard("job_seeker", "/");
+    const { status, user } = useRoleGuard("job_seeker");
 
     useEffect(() => {
         if (user?.email) {

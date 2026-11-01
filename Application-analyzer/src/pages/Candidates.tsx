@@ -4,7 +4,6 @@ import axios from "../api/axios";
 import { toast, ToastContainer } from "react-toastify";
 import defpfp from "../assets/defpfp.svg";
 import StatusBadge from "../components/StatusBadge";
-import { getAIScore } from "../data/mockAIScores";
 import "react-toastify/dist/ReactToastify.css";
 import Pagination from "../components/Pagination";
 import ApplicationStatusControl from "../components/ApplicationStatusControl";
@@ -163,9 +162,6 @@ export default function Candidates() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Job Applied For
                     </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Score
-                    </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
@@ -176,7 +172,6 @@ export default function Candidates() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedApplications.map((app) => {
-                    const aiScore = getAIScore(app.id);
                     return (
                       <tr key={app.id} className="hover:bg-gray-50 transition">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -210,16 +205,6 @@ export default function Candidates() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {app.job_title}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span
-                            className={`text-lg font-bold ${aiScore.score >= 70 ? "text-green-600" :
-                              aiScore.score >= 50 ? "text-yellow-600" :
-                                "text-red-600"
-                              }`}
-                          >
-                            {aiScore.score}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <StatusBadge status={app.status || "submitted"} />

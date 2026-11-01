@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { jobService, profileService, Job } from "../api/services";
+import { jobService, Job } from "../api/services";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { isJobActive } from "../utils/jobStatus";
@@ -43,32 +43,9 @@ export default function Jobs() {
         return;
       }
 
-      // This endpoint returns every job in the system, not just this
-      // recruiter's own postings — job seekers are meant to see everything
-      // via Browse Jobs, but a recruiter managing listings here should
-      // only see (and be able to edit/delete) jobs they actually created.
-      //
-      // Job.recruiter is a foreign key to RecruiterProfile.id — NOT the
-      // logged-in User's id from the JWT/localStorage. Those are two
-      // different id spaces (a previous version of this filter compared
-      // job.recruiter against the User id directly, which meant it never
-      // matched and every job silently disappeared). The recruiter's own
-      // RecruiterProfile.id has to be looked up first.
-      let ownJobs = fetchedJobs;
-      try {
-        const profileData = await profileService.getRecruiterProfile();
-        const profileList = profileData.results || profileData;
-        const myProfile = Array.isArray(profileList) ? profileList[0] : null;
-        if (myProfile?.id != null) {
-          ownJobs = fetchedJobs.filter(
-            (job) => String(job.recruiter) === String(myProfile.id)
-          );
-        }
-      } catch (profileError) {
-        // No recruiter profile yet (or it failed to load) — fall back to
-        // showing everything rather than hiding all jobs on an error.
-        console.error("Error loading recruiter profile for job filtering:", profileError);
-      }
+      // The server already limits a logged-in recruiter to their own
+      // company's jobs (posted by them or a colleague), so no filtering here.
+      const ownJobs = fetchedJobs;
 
       setJobs(ownJobs);
     } catch (error: any) {

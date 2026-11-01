@@ -1,5 +1,6 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.decorators import action
+from django.db import transaction
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
@@ -10,19 +11,23 @@ from .serializers import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from .models import JobSeekerApplication, Job, CalendarEvent
-from .permissions import IsJobPoster, IsJobApplicant
+from .models import JobSeekerApplication, Job, CalendarEvent, ApplicationStatusEvent
+from .permissions import IsJobPoster, IsJobApplicant, IsCompanyJob
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 def _recruiter_profile(user):
-    """Return the user's RecruiterProfile, or None if they are not a recruiter."""
+    """
+    Return the user's RecruiterProfile if they are a recruiter that belongs to
+    a company, otherwise None. (A recruiter's world is their company's jobs.)
+    """
     if not user or not user.is_authenticated or getattr(user, 'role', None) != 'recruiter':
         return None
     try:
-        return user.recruiter_profile
+        profile = user.recruiter_profile
     except Exception:
         return None
+    return profile if profile.company_id else None
 
 
 def _job_seeker_profile(user):
@@ -52,8 +57,8 @@ class JobViewSet(viewsets.ModelViewSet):
             # Public access for viewing jobs
             return []
         if self.action in ['update', 'partial_update', 'destroy']:
-            # Only the recruiter who posted the job may change or delete it
-            return [IsAuthenticated(), IsJobPoster()]
+            # Any recruiter of the company that owns the job may change or delete it
+            return [IsAuthenticated(), IsCompanyJob()]
         return [IsAuthenticated()]
     
     def get_queryset(self):
@@ -62,14 +67,17 @@ class JobViewSet(viewsets.ModelViewSet):
         """
         queryset = super().get_queryset()
 
-        # A logged-in recruiter only ever sees the jobs they posted.
-        # Job seekers and anonymous visitors still see every job.
+        # A logged-in recruiter only ever sees their own company's jobs
+        # (posted by them or by a colleague). Job seekers and anonymous
+        # visitors see every job of every active company.
         user = self.request.user
         if user.is_authenticated and getattr(user, 'role', None) == 'recruiter':
             profile = _recruiter_profile(user)
             if profile is None:
                 return queryset.none()
-            queryset = queryset.filter(recruiter=profile)
+            queryset = queryset.filter(company_id=profile.company_id)
+        else:
+            queryset = queryset.filter(Q(company__isnull=True) | Q(company__is_active=True))
 
         # Filter by job type
         job_type = self.request.query_params.get('job_type', None)
@@ -92,15 +100,13 @@ class JobViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         if getattr(self.request.user, 'role', None) != 'recruiter':
             raise PermissionDenied("Only recruiters can post jobs.")
-        # Create recruiter profile if it doesn't exist
-        try:
-            recruiter_profile = self.request.user.recruiter_profile
-        except Exception:
-            from profiles.models import RecruiterProfile
-            recruiter_profile = RecruiterProfile.objects.create(user=self.request.user)
-        
-        serializer.save(recruiter=recruiter_profile)
-    
+        profile = _recruiter_profile(self.request.user)
+        if profile is None:
+            raise PermissionDenied("Your account is not linked to a company yet.")
+
+        # posted by this recruiter, owned by their company
+        serializer.save(recruiter=profile, company=profile.company)
+
     @swagger_auto_schema(
         operation_description="List all jobs. Supports filtering by job_type, location, and active_only. Search by title, description, location, requirements.",
         operation_summary="List Jobs",
@@ -160,11 +166,11 @@ class JobViewSet(viewsets.ModelViewSet):
         """Get job statistics"""
         jobs = Job.objects.all()
         applications = JobSeekerApplication.objects.all()
-        # Recruiters only get numbers for what they posted
+        # Recruiters only get numbers for their own company
         if request.user.is_authenticated and getattr(request.user, 'role', None) == 'recruiter':
             profile = _recruiter_profile(request.user)
-            jobs = jobs.filter(recruiter=profile) if profile else jobs.none()
-            applications = applications.filter(job__recruiter=profile) if profile else applications.none()
+            jobs = jobs.filter(company_id=profile.company_id) if profile else jobs.none()
+            applications = applications.filter(job__company_id=profile.company_id) if profile else applications.none()
 
         return Response({
             'total_jobs': jobs.count(),
@@ -181,17 +187,16 @@ class JobViewSet(viewsets.ModelViewSet):
     def dashboard_stats(self, request):
         """Get dashboard statistics for recruiter"""
         # Check if user is recruiter
-        try:
-            recruiter_profile = request.user.recruiter_profile
-        except:
+        recruiter_profile = _recruiter_profile(request.user)
+        if recruiter_profile is None:
             return Response({'error': 'Only recruiters can access dashboard stats'}, 
                           status=status.HTTP_403_FORBIDDEN)
         
-        # Get recruiter's jobs
-        recruiter_jobs = Job.objects.filter(recruiter=recruiter_profile)
+        # Get the company's jobs
+        recruiter_jobs = Job.objects.filter(company_id=recruiter_profile.company_id)
         
-        # Get all applications for recruiter's jobs
-        all_applications = JobSeekerApplication.objects.filter(job__recruiter=recruiter_profile)
+        # Get all applications for the company's jobs
+        all_applications = JobSeekerApplication.objects.filter(job__company_id=recruiter_profile.company_id)
         
         # Get calendar events
         upcoming_interviews = CalendarEvent.objects.filter(
@@ -220,16 +225,16 @@ class JobViewSet(viewsets.ModelViewSet):
 class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
     """
     Visibility rules (enforced here, not in the UI):
-      * recruiter  -> only applications submitted to jobs THEY posted
+      * recruiter  -> only applications to jobs of THEIR COMPANY
       * job seeker -> only their own applications
       * anyone else -> nothing
     Recruiters move an application through the review pipeline with
-    POST/PATCH /applications/{id}/status/ ; they cannot edit the
+    POST/PATCH /applications/{id}/status/ (any recruiter of that company); they cannot edit the
     applicant's files, and applicants cannot change their own status.
     """
     permission_classes = [IsAuthenticated]
     serializer_class = JobSeekerApplicationSerializer
-    queryset = JobSeekerApplication.objects.select_related('applicant__user', 'job__recruiter').all()
+    queryset = JobSeekerApplication.objects.select_related('applicant__user', 'job__company').all()
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['applied_at', 'status']
     ordering = ['-applied_at']
@@ -242,15 +247,15 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
         base = JobSeekerApplication.objects.select_related(
-            'applicant__user', 'job__recruiter'
-        )
+            'applicant__user', 'job__company'
+        ).prefetch_related('status_events__changed_by')
 
         recruiter = _recruiter_profile(user)
         seeker = _job_seeker_profile(user)
         if recruiter is not None:
-            queryset = base.filter(job__recruiter=recruiter)
+            queryset = base.filter(job__company_id=recruiter.company_id)
         elif getattr(user, 'role', None) == 'recruiter':
-            queryset = base.none()  # recruiter with no profile yet has no jobs
+            queryset = base.none()  # recruiter not linked to a company has no jobs
         elif seeker is not None:
             queryset = base.filter(applicant=seeker)
         else:
@@ -334,8 +339,15 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
                           f"Allowed: {', '.join(allowed) if allowed else 'none (final status)'}."
             })
 
-        application.status = new_status
-        application.save(update_fields=['status'])
+        with transaction.atomic():
+            application.status = new_status
+            application.save(update_fields=['status'])
+            ApplicationStatusEvent.objects.create(
+                application=application, status=new_status, changed_by=request.user
+            )
+        # get_object() prefetched the history before this change; drop that
+        # cache so the response includes the entry we just added.
+        getattr(application, '_prefetched_objects_cache', {}).pop('status_events', None)
         return Response(self.get_serializer(application).data)
 
     @swagger_auto_schema(

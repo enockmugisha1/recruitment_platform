@@ -6,6 +6,9 @@ import os
 
 class JobSerializer(serializers.ModelSerializer):
     recruiter = serializers.PrimaryKeyRelatedField(read_only=True)
+    company = serializers.PrimaryKeyRelatedField(read_only=True)
+    company_name = serializers.CharField(source='company.name', read_only=True, default=None)
+    posted_by = serializers.SerializerMethodField()
     salary_range = serializers.CharField(required=False)
     deadline = serializers.DateField(format="%Y-%m-%d", input_formats=["%Y-%m-%d"])
     created_at = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', read_only=True)
@@ -14,6 +17,10 @@ class JobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = '__all__'
+
+    def get_posted_by(self, obj):
+        user = obj.recruiter.user
+        return f"{user.first_name} {user.last_name}".strip() or user.email
 
     def validate_deadline(self, value):
         if value < date.today():
@@ -46,6 +53,19 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
     linkedin = serializers.CharField(source='applicant.linkedin', read_only=True)
     picture = serializers.SerializerMethodField()
 
+    # Personal details from the applicant's profile (visible to the applicant
+    # and to recruiters of the company the job belongs to — nobody else can
+    # reach this application at all)
+    nationality = serializers.CharField(source='applicant.nationality', read_only=True)
+    bio = serializers.CharField(source='applicant.bio', read_only=True)
+    institution_or_company = serializers.CharField(source='applicant.institution_or_company', read_only=True)
+    gender = serializers.CharField(source='applicant.get_gender_display', read_only=True)
+    date_of_birth = serializers.DateField(source='applicant.date_of_birth', read_only=True)
+    website = serializers.CharField(source='applicant.website', read_only=True)
+
+    company_name = serializers.CharField(source='job.company.name', read_only=True, default=None)
+    status_history = serializers.SerializerMethodField()
+
     # Alias kept for older frontend code that reads `submitted_at`
     submitted_at = serializers.DateTimeField(source='applied_at', read_only=True)
 
@@ -67,13 +87,32 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(pic.url) if request else pic.url
 
     def get_allowed_next_statuses(self, obj):
+        # only meaningful to recruiters; applicants cannot move their own application
+        request = self.context.get('request')
+        if request is not None and getattr(request.user, 'role', None) != 'recruiter':
+            return []
         return JobSeekerApplication.ALLOWED_TRANSITIONS.get(obj.status, [])
+
+    def get_status_history(self, obj):
+        """Every status the application has been in. Recruiters also see who moved it."""
+        request = self.context.get('request')
+        is_recruiter = request is not None and getattr(request.user, 'role', None) == 'recruiter'
+        history = []
+        for event in obj.status_events.all():  # prefetched, ordered by time
+            entry = {'status': event.status, 'changed_at': event.changed_at}
+            if is_recruiter:
+                by = event.changed_by
+                entry['changed_by'] = (f"{by.first_name} {by.last_name}".strip() or by.email) if by else None
+            history.append(entry)
+        return history
 
     def validate_job(self, job):
         # Only enforced when submitting, not when a file is replaced later.
         if self.instance is None:
             if job.deadline < date.today():
                 raise serializers.ValidationError("The deadline for this job has passed.")
+            if job.company_id and not job.company.is_active:
+                raise serializers.ValidationError("This job is no longer accepting applications.")
         return job
 
     def validate_file_extension(self, file):

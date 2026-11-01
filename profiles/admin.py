@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import JobSeekerProfile, RecruiterProfile
+from .models import JobSeekerProfile, RecruiterProfile, Company
 
 @admin.register(JobSeekerProfile)
 class JobSeekerProfileAdmin(admin.ModelAdmin):
@@ -10,6 +10,15 @@ class JobSeekerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(RecruiterProfile)
 class RecruiterProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'company_name', 'company_website', 'created_at')
+    list_display = ('user', 'company', 'is_company_admin', 'created_at')
+    list_filter = ('company', 'is_company_admin')
     search_fields = ('user__username', 'user__email', 'company_name')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'location', 'contact_email', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'contact_email', 'location')
     readonly_fields = ('created_at', 'updated_at')

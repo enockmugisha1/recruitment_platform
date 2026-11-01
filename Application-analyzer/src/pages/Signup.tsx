@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "../api/axios";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -7,16 +7,13 @@ import 'react-toastify/dist/ReactToastify.css';
 export default function Signup() {
   const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialRole = searchParams.get("role") === "recruiter" ? "recruiter" : "job_seeker";
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
-    confirmPassword: "",
-    role: initialRole
+    confirmPassword: ""
   });
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +41,8 @@ export default function Signup() {
         email: formData.email,
         password: formData.password,
         password_confirm: formData.confirmPassword,
-        role: formData.role
+        // Sign-up is for job seekers only. The server enforces this too.
+        role: 'job_seeker'
       });
 
       toast.success('Account created successfully! Please login.', {
@@ -120,17 +118,10 @@ export default function Signup() {
           required
         />
 
-        {/* Role Selection */}
-        <select
-          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition bg-white"
-          name="role"
-          value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          required
-        >
-          <option value="job_seeker">Job Seeker</option>
-          <option value="recruiter">Recruiter</option>
-        </select>
+        <p className="text-xs text-gray-500 -mt-1">
+          Creating a job seeker account. Recruiters don't sign up here: their company
+          creates their account and emails them a temporary password.
+        </p>
 
         {/* Password */}
         <div className="relative">

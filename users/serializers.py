@@ -14,8 +14,14 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class RegisterUserSerializer(serializers.ModelSerializer):
+    """
+    Public sign-up. Only job seekers can register themselves; recruiter
+    accounts are created by their company (or the business) and business
+    accounts by ThinkGreen Afrika, so any other role is refused.
+    """
     password = serializers.CharField(write_only=True, min_length=8, max_length=128)
     password_confirm = serializers.CharField(write_only=True, required=False)
+    role = serializers.CharField(required=False, default='job_seeker')
 
     class Meta:
         model = User
@@ -29,6 +35,13 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("User with this email already exists.")
         
+        return value
+
+    def validate_role(self, value):
+        if value != 'job_seeker':
+            raise serializers.ValidationError(
+                "Sign up is for job seekers only. Recruiter accounts are created by your company."
+            )
         return value
 
     def validate_password(self, value):
@@ -112,6 +125,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 
         if password:
             instance.set_password(password)
+            instance.must_change_password = False
             logger.info(f"Password updated for user: {instance.email}")
 
         instance.save()
@@ -174,4 +188,20 @@ class PasswordResetSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         return attrs
-    
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8, max_length=128)
+    password_confirm = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        validate_password_strength(value)
+        return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
+        if attrs['new_password'] == attrs['current_password']:
+            raise serializers.ValidationError({"new_password": "Choose a password different from your current one."})
+        return attrs

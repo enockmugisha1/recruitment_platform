@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from .models import JobSeekerApplication, CalendarEvent
+from .models import JobSeekerApplication, CalendarEvent, ApplicationStatusEvent
 from .email_utils import send_application_confirmation, send_status_update_notification, send_interview_invitation
 import logging
 
@@ -25,6 +25,10 @@ def application_status_changed(sender, instance, created, **kwargs):
     Signal to handle application status changes and send notifications
     """
     if created:
+        # first entry of the application's status history
+        ApplicationStatusEvent.objects.create(
+            application=instance, status=instance.status, changed_by=instance.applicant.user
+        )
         logger.info(f"New application submitted: {instance.applicant.user.email} for {instance.job.title}")
         send_application_confirmation(instance)
     elif getattr(instance, '_previous_status', None) != instance.status:

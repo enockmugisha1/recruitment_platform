@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
-from profiles.models import RecruiterProfile, JobSeekerProfile
+from django.conf import settings
+from profiles.models import RecruiterProfile, JobSeekerProfile, Company
 from .validators import validate_file_size, validate_deadline
 
 # Defines Job model
@@ -12,7 +13,11 @@ class Job(models.Model):
         ('internship', 'Internship'),
     )
 
+    # The recruiter who posted it ...
     recruiter = models.ForeignKey(RecruiterProfile, on_delete=models.CASCADE, related_name='jobs')
+    # ... and the company it belongs to. Every recruiter of that company can
+    # see and manage it; recruiters of other companies cannot.
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     requirements = models.TextField()
@@ -83,6 +88,20 @@ class JobSeekerApplication(models.Model):
 
     def __str__(self):
         return f"{self.applicant.user.get_full_name()} - {self.job.title}"
+
+
+# One row per status the application has been in: who moved it and when.
+class ApplicationStatusEvent(models.Model):
+    application = models.ForeignKey(JobSeekerApplication, on_delete=models.CASCADE, related_name='status_events')
+    status = models.CharField(max_length=50, choices=JobSeekerApplication.STATUS_CHOICES)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['changed_at', 'id']
+
+    def __str__(self):
+        return f"{self.application_id}: {self.status}"
 
 
 # Defines Calendar Event model for interview scheduling

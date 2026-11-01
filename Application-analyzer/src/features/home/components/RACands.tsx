@@ -2,25 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import defpfp from "../../../assets/defpfp.svg"
 import axios from "../../../api/axios"
-
-interface Application {
-  id: number;
-  job: {
-    id: number;
-    title: string;
-  };
-  applicant: {
-    id: number;
-    user: {
-      first_name: string;
-      last_name: string;
-      email: string;
-    };
-    picture?: string;
-  };
-  status: string;
-  applied_at: string;
-}
+import { Application } from "../../../api/services"
 
 export default function RACands() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -66,7 +48,6 @@ export default function RACands() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'submitted':
-      case 'pending':
         return 'bg-blue-50 text-blue-700';
       case 'under_review':
         return 'bg-yellow-50 text-yellow-700';
@@ -75,7 +56,6 @@ export default function RACands() {
       case 'rejected':
         return 'bg-red-50 text-red-700';
       case 'accepted':
-      case 'hired':
         return 'bg-purple-50 text-purple-700';
       default:
         return 'bg-gray-50 text-gray-700';
@@ -101,17 +81,15 @@ export default function RACands() {
                 <td className="px-6 py-4">
                   <Link to={`/candidates/${app.id}`} className="flex items-center gap-3">
                     <img
-                      src={app.applicant?.picture || defpfp}
+                      src={app.picture || defpfp}
                       alt="Profile"
                       className="h-10 w-10 rounded-full object-cover flex-shrink-0 border-2 border-gray-100"
                     />
                     <div>
                       <p className="text-sm font-bold text-gray-800">
-                        {app.applicant?.user
-                          ? `${app.applicant.user.first_name} ${app.applicant.user.last_name}`
-                          : "Unknown Candidate"}
+                        {`${app.first_name ?? ""} ${app.last_name ?? ""}`.trim() || "Unknown Candidate"}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{app.applicant?.user?.email || "No email"}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{app.email || "No email"}</p>
                     </div>
                   </Link>
                 </td>
@@ -125,11 +103,11 @@ export default function RACands() {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-sm font-semibold text-gray-800">{app.job?.title || "Untitled Position"}</span>
+                  <span className="text-sm font-semibold text-gray-800">{app.job_title || "Untitled Position"}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${getStatusColor(app.status || "pending")}`}>
-                    {(app.status || "pending").replace('_', ' ')}
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${getStatusColor(app.status || "submitted")}`}>
+                    {(app.status || "submitted").replace('_', ' ')}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">

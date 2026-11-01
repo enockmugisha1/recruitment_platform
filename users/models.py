@@ -28,13 +28,18 @@ class MyUserManager(BaseUserManager):
 class MyUser(AbstractUser):
     ROLE_CHOICES = [
         ('job_seeker', 'Job Seeker'),
-        ('recruiter', 'Recruiter')
+        ('recruiter', 'Recruiter'),
+        # ThinkGreen Afrika staff who onboard companies and create their recruiters
+        ('business', 'Business'),
     ]
 
     username = models.CharField(unique=False, max_length=255)
     email = models.EmailField(unique=True, blank=False, null=False)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_email_verified = models.BooleanField(default=False)
+    # True while the user is still on a generated temporary password
+    # (new recruiters, or after a password reset by their company / the business)
+    must_change_password = models.BooleanField(default=False)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     failed_login_attempts = models.IntegerField(default=0)
     account_locked_until = models.DateTimeField(null=True, blank=True)

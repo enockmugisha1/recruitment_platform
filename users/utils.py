@@ -48,3 +48,28 @@ def log_security_event(event_type, user, details, level="INFO"):
         logger.critical(log_message)
     else:
         logger.info(log_message)
+
+
+def build_user_data(user):
+    """
+    The user payload the frontend stores after login / refreshes via /auth/me/.
+    For recruiters it carries their company so the UI can show it and decide
+    whether to offer the team page.
+    """
+    data = {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role,
+        "is_email_verified": user.is_email_verified,
+        "must_change_password": user.must_change_password,
+        "company": None,
+        "is_company_admin": False,
+    }
+    if user.role == "recruiter":
+        profile = getattr(user, "recruiter_profile", None)
+        if profile is not None and profile.company_id:
+            data["company"] = {"id": profile.company_id, "name": profile.company.name}
+            data["is_company_admin"] = profile.is_company_admin
+    return data

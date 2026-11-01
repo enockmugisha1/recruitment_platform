@@ -2,7 +2,7 @@ import { FormEvent, useRef, useState } from "react";
 import { useOutletContext, useNavigate, Link } from "react-router-dom";
 import axios from "../api/axios";
 import { toast } from 'react-toastify';
-import { clearSession } from "../utils/auth";
+import { homeForRole, saveSession } from "../utils/auth";
 
 type Role = "job_seeker" | "recruiter";
 
@@ -11,72 +11,15 @@ const ROLE_TABS: { key: Role; label: string }[] = [
   { key: "recruiter", label: "Recruiter" },
 ];
 
-const ROLE_COPY: Record<
-  Role,
-  {
-    emailPlaceholder: string;
-    emailType: string;
-    footerPromptLabel: string;
-    footerLinkText: string;
-    footerLinkTo: string;
-  }
-> = {
-  job_seeker: {
-    emailPlaceholder: "Email Address",
-    emailType: "email",
-    footerPromptLabel: "New here?",
-    footerLinkText: "Create an Account",
-    footerLinkTo: "/signup",
-  },
-  recruiter: {
-    emailPlaceholder: "Work Email Address",
-    emailType: "email",
-    footerPromptLabel: "Hiring?",
-    footerLinkText: "Register as an Employer / Post a Job",
-    footerLinkTo: "/signup?role=recruiter",
-  },
+const ROLE_COPY: Record<Role, { emailPlaceholder: string; emailType: string }> = {
+  job_seeker: { emailPlaceholder: "Email Address", emailType: "email" },
+  recruiter: { emailPlaceholder: "Work Email Address", emailType: "email" },
 };
 
-function roleLabel(role: Role) {
-  return role === "recruiter" ? "Recruiter" : "Job Seeker";
-}
-
-/**
- * Fallback only: `user_data.role` from /auth/login/ is now the primary
- * source of truth for a user's real role (see handleLogin). This only
- * gets called if that's ever missing, by checking which of the two
- * profile-list endpoints actually has this user's data in it — those are
- * scoped server-side to the requesting user, so whichever one comes back
- * non-empty tells us their real role. This only works once someone has
- * created a profile; a brand-new user with no profile yet is
- * indistinguishable from this check alone, so the caller falls back to
- * the chosen tab in that case (this function returns null).
- */
-async function detectRealRole(): Promise<Role | null> {
-  const [seekerResult, recruiterResult] = await Promise.allSettled([
-    axios.get('/profile/job/seeker/'),
-    axios.get('/profile/job/recruiter/'),
-  ]);
-
-  const asList = (data: unknown): unknown[] => {
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object' && Array.isArray((data as { results?: unknown }).results)) {
-      return (data as { results: unknown[] }).results;
-    }
-    return [];
-  };
-
-  const hasSeekerProfile =
-    seekerResult.status === 'fulfilled' && asList(seekerResult.value.data).length > 0;
-  const hasRecruiterProfile =
-    recruiterResult.status === 'fulfilled' && asList(recruiterResult.value.data).length > 0;
-
-  if (hasRecruiterProfile && !hasSeekerProfile) return 'recruiter';
-  if (hasSeekerProfile && !hasRecruiterProfile) return 'job_seeker';
-
-  // Both empty (new user, no profile yet) or both non-empty (shouldn't
-  // happen, but don't guess if it does) — nothing conclusive either way.
-  return null;
+function roleLabel(role: string) {
+  if (role === "recruiter") return "Recruiter";
+  if (role === "business") return "Business";
+  return "Job Seeker";
 }
 
 export default function Login() {
@@ -107,87 +50,45 @@ export default function Login() {
     e.preventDefault();
 
     // Guards against a double-click/double-Enter firing this twice before
-    // the `loading` state (which is async) has a chance to disable the
-    // button — submittingRef flips synchronously, so the second call bails
-    // out immediately instead of kicking off a second request/navigation.
+    // the `loading` state (which is async) has a chance to disable the button.
     if (submittingRef.current) return;
     submittingRef.current = true;
     setLoading(true);
     setRoleError(null);
 
     try {
-      const payload: Record<string, string> = {
-        email,
-        password,
-        role: activeRole,
-      };
+      const response = await axios.post('/auth/login/', { email, password });
+      const { access, refresh, user_data: user } = response.data;
 
-      const response = await axios.post('/auth/login/', payload);
-      // The backend returns the logged-in user's info under `user_data`
-      // (confirmed directly from users/views.py) — NOT `user`. That
-      // mismatch was the actual root cause of every role mix-up: role was
-      // being sent back correctly on every login, the frontend was just
-      // reading a key (`user`) that never existed, so it silently fell
-      // back to whatever tab was selected every single time.
-      const { access, refresh, user_data: userFromServer } = response.data;
-
-      // Store the token before anything else — the fallback role probe
-      // below needs to make authenticated requests, and the axios
-      // interceptor reads this token straight out of localStorage.
-      localStorage.setItem('accessToken', access);
-      if (rememberMe) {
-        localStorage.setItem('refreshToken', refresh);
-      } else {
-        sessionStorage.setItem('refreshToken', refresh);
-      }
-
-      // user_data.role is now the real source of truth. The profile-probe
-      // fallback only kicks in if that's ever missing (e.g. a future
-      // backend change), so this keeps working even if that regresses.
-      const detectedRole = userFromServer?.role ?? (await detectRealRole());
-      const realRole = detectedRole ?? activeRole;
-
-      // Someone can have valid credentials for an account whose real role
-      // doesn't match the tab they picked (e.g. a recruiter account while
-      // "Job Seeker" was active). The backend doesn't enforce this, so we
-      // do it here: don't let them in on the wrong tab — kick them back
-      // to the login screen for their actual role instead.
-      const roleMismatch = detectedRole !== null && detectedRole !== activeRole;
-
-      if (roleMismatch) {
-        clearSession();
-        const message = `This account is registered as a ${roleLabel(realRole)}. Please use the ${roleLabel(realRole)} login tab instead.`;
+      // The account's real role comes from the server. If it doesn't match the
+      // tab that was picked, don't let them in on the wrong tab.
+      if (user.role !== activeRole) {
+        const message =
+          user.role === "business"
+            ? "This is a ThinkGreen Afrika business account. Please use the Business login page."
+            : `This account is registered as a ${roleLabel(user.role)}. Please use the ${roleLabel(user.role)} tab instead.`;
         setRoleError(message);
-        toast.error(message, {
-          position: "top-right",
-          autoClose: 5000,
-        });
+        toast.error(message, { position: "top-right", autoClose: 5000 });
         submittingRef.current = false;
         return;
       }
 
-      const user = {
-        ...userFromServer,
-        role: realRole,
-      };
+      saveSession({ access, refresh, user_data: user }, rememberMe);
 
-      localStorage.setItem('email', user.email || email);
-      localStorage.setItem('user', JSON.stringify(user));
+      // New recruiters arrive with a temporary password and must choose their own
+      if (user.must_change_password) {
+        toast.info('Please choose a new password to continue.', { position: "top-right", autoClose: 4000 });
+        navigate('/change-password', { replace: true });
+        return;
+      }
 
-      toast.success('Login successful!', {
-        position: "top-right",
-        autoClose: 3000,
-      });
-
+      toast.success('Login successful!', { position: "top-right", autoClose: 3000 });
       handleAuth(e);
-
-      navigate(user.role === 'recruiter' ? '/' : '/dashboard', { replace: true });
+      navigate(homeForRole(user.role), { replace: true });
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || "Login failed";
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 5000,
-      });
+      const data = err.response?.data;
+      const errorMessage = data?.error || data?.detail || "Login failed";
+      toast.error(errorMessage, { position: "top-right", autoClose: 5000 });
       submittingRef.current = false;
     } finally {
       setLoading(false);
@@ -315,14 +216,24 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Role-specific sign-up / register prompt */}
-        <p className="text-center text-sm text-gray-600 mt-6">
-          {copy.footerPromptLabel}{" "}
-          <Link
-            to={copy.footerLinkTo}
-            className="text-green-600 font-semibold hover:underline"
-          >
-            {copy.footerLinkText}
+        {/* Sign-up is for job seekers only; recruiters are created by their company */}
+        {activeRole === "job_seeker" ? (
+          <p className="text-center text-sm text-gray-600 mt-6">
+            New here?{" "}
+            <Link to="/signup" className="text-green-600 font-semibold hover:underline">
+              Create an Account
+            </Link>
+          </p>
+        ) : (
+          <p className="text-center text-sm text-gray-600 mt-6">
+            Recruiter accounts are created by your company. Use the email and temporary
+            password sent to you; you'll choose your own on first login.
+          </p>
+        )}
+        <p className="text-center text-xs text-gray-400 mt-3">
+          ThinkGreen Afrika staff?{" "}
+          <Link to="/business/login" className="text-green-600 hover:underline">
+            Business login
           </Link>
         </p>
       </div>

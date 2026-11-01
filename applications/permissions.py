@@ -30,4 +30,15 @@ class IsJobApplicant(BasePermission):
             return False
         except Exception as error:
             return False
-        
+
+
+# Allows job changes to any recruiter of the company the job belongs to.
+class IsCompanyJob(BasePermission):
+    message = "Permission denied because this job belongs to another company."
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        profile = getattr(request.user, 'recruiter_profile', None)
+        return bool(profile and profile.company_id and obj.company_id == profile.company_id)

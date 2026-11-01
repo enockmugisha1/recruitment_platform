@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../api/axios";
-import AIScoreWidget from "../components/AIScoreWidget";
 import StatusBadge from "../components/StatusBadge";
 import ApplicationStatusControl from "../components/ApplicationStatusControl";
-import { Application } from "../api/services";
-import { getAIScore } from "../data/mockAIScores";
+import { Application, APPLICATION_STATUS_LABELS } from "../api/services";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -69,7 +67,6 @@ export default function CandidateDetail() {
         );
     }
 
-    const aiScore = getAIScore(application.id);
     const fullName = `${application.first_name} ${application.last_name}`.trim() || "Unknown Candidate";
     const currentStep = PIPELINE.findIndex((p) => p.key === application.status);
     const rejected = application.status === "rejected";
@@ -187,41 +184,45 @@ export default function CandidateDetail() {
                             </div>
                         </div>
 
-                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Applicant details</h3>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">Personal details</h3>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <dt className="text-xs text-gray-500 uppercase">Email</dt>
-                                <dd className="text-gray-800">{application.email}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-gray-500 uppercase">Phone</dt>
-                                <dd className="text-gray-800">{application.phone || "—"}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-gray-500 uppercase">Location</dt>
-                                <dd className="text-gray-800">{application.location || "—"}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-gray-500 uppercase">Years of experience</dt>
-                                <dd className="text-gray-800">{application.years_of_experience ?? "—"}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-gray-500 uppercase">Education</dt>
-                                <dd className="text-gray-800">{application.education || "—"}</dd>
-                            </div>
+                            {[
+                                ["Full name", fullName],
+                                ["Email", application.email],
+                                ["Phone", application.phone],
+                                ["Gender", application.gender],
+                                ["Date of birth", application.date_of_birth ? new Date(application.date_of_birth).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""],
+                                ["Nationality", application.nationality],
+                                ["Location", application.location],
+                                ["Education", application.education],
+                                ["Current institution / company", application.institution_or_company],
+                                ["Years of experience", application.years_of_experience != null ? String(application.years_of_experience) : ""],
+                            ].map(([label, value]) => (
+                                <div key={label}>
+                                    <dt className="text-xs text-gray-500 uppercase">{label}</dt>
+                                    <dd className="text-gray-800">{value || "—"}</dd>
+                                </div>
+                            ))}
                             <div>
                                 <dt className="text-xs text-gray-500 uppercase">LinkedIn</dt>
                                 <dd className="text-gray-800">
                                     {application.linkedin ? (
-                                        <a href={application.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                            View profile
-                                        </a>
-                                    ) : (
-                                        "—"
-                                    )}
+                                        <a href={application.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View profile</a>
+                                    ) : "—"}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-500 uppercase">Website</dt>
+                                <dd className="text-gray-800">
+                                    {application.website ? (
+                                        <a href={application.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{application.website}</a>
+                                    ) : "—"}
                                 </dd>
                             </div>
                         </dl>
+
+                        <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-2">About</h3>
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{application.bio || "The applicant hasn't written a bio."}</p>
                     </div>
                 </div>
 
@@ -251,7 +252,24 @@ export default function CandidateDetail() {
                         </div>
                     </div>
 
-                    <AIScoreWidget score={aiScore.score} label={aiScore.label} criteria={aiScore.criteria} />
+                    {/* Status history: every step, when, and which recruiter moved it */}
+                    <div className="modern-card p-6">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">Status history</h3>
+                        <ol className="relative border-l-2 border-gray-200 ml-2 space-y-5">
+                            {(application.status_history ?? []).map((h, i, all) => (
+                                <li key={i} className="ml-5">
+                                    <span className={`absolute -left-[7px] w-3 h-3 rounded-full ${i === all.length - 1 ? "bg-green-500" : "bg-gray-300"}`}></span>
+                                    <p className="text-sm font-semibold text-gray-800">{APPLICATION_STATUS_LABELS[h.status] ?? h.status}</p>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(h.changed_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        {h.changed_by ? `by ${h.changed_by}` : i === 0 ? "by the applicant" : ""}
+                                    </p>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
                 </div>
             </div>
         </div>

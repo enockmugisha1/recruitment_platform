@@ -16,7 +16,7 @@ export default function AdminLayout() {
     // the check resolves, so there's no flash of recruiter content for
     // other roles (this used to happen because of a stale navigate('/')
     // call elsewhere racing the role check).
-    const { status, user } = useRoleGuard("recruiter", "/dashboard");
+    const { status, user } = useRoleGuard("recruiter");
 
     useEffect(() => {
         if (user?.email) {
@@ -93,9 +93,15 @@ export default function AdminLayout() {
 
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-2 font-bold text-xl text-green-600">
-                            <i className="fa-solid fa-users-gear"></i>
-                            <span className="hidden sm:block">RecruiterPro</span>
+                            <i className="fa-solid fa-leaf"></i>
+                            <span className="hidden sm:block">ThinkGreen Afrika</span>
                         </Link>
+                        {user?.company?.name && (
+                            <span className="hidden md:inline-flex items-center gap-2 pl-4 ml-1 border-l border-gray-200 text-sm font-semibold text-gray-600">
+                                <i className="fa-solid fa-building text-gray-400"></i>
+                                {user.company.name}
+                            </span>
+                        )}
 
                         {/* Search Bar */}
                         <div className="hidden md:flex items-center flex-1 max-w-lg">
@@ -176,8 +182,8 @@ export default function AdminLayout() {
                             >
                                 <img src={pfpImg} alt="Profile" className="w-8 h-8 rounded-full border-2 border-gray-200" />
                                 <div className="hidden md:block text-left">
-                                    <p className="text-sm font-semibold text-gray-700">{email || "Admin"}</p>
-                                    <p className="text-xs text-gray-500">Recruiter</p>
+                                    <p className="text-sm font-semibold text-gray-700">{email || "Recruiter"}</p>
+                                    <p className="text-xs text-gray-500">{user?.company?.name || "Recruiter"}</p>
                                 </div>
                                 <i className={`fa-solid fa-chevron-${showProfileMenu ? "up" : "down"} text-gray-400 text-xs`}></i>
                             </button>
@@ -186,8 +192,11 @@ export default function AdminLayout() {
                             {showProfileMenu && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                                     <div className="p-3 border-b border-gray-200">
-                                        <p className="text-sm font-semibold text-gray-800">{email || "Admin"}</p>
-                                        <p className="text-xs text-gray-500">Recruiter Account</p>
+                                        <p className="text-sm font-semibold text-gray-800">{email || "Recruiter"}</p>
+                                        <p className="text-xs text-gray-500">
+                                            {user?.is_company_admin ? "Company administrator" : "Recruiter account"}
+                                            {user?.company?.name ? ` · ${user.company.name}` : ""}
+                                        </p>
                                     </div>
                                     <div className="py-1">
                                         <Link

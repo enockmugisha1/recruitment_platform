@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, CurrentUser } from "../utils/auth";
+import { getCurrentUser, CurrentUser, Role, homeForRole, loginForRole } from "../utils/auth";
 
 type GuardStatus = "checking" | "authorized";
 
 /**
  * Verifies the current user is logged in AND has the required role before
- * a protected layout renders its content. Redirects (without ever flashing
- * the protected content) to /login if unauthenticated, or to fallbackPath
- * if the role doesn't match.
+ * a protected layout renders its content, without ever flashing the
+ * protected content:
+ *   - not logged in                       -> that role's login screen
+ *   - still on a temporary password       -> /change-password
+ *   - logged in with a different role     -> that role's own home
  */
-export function useRoleGuard(requiredRole: "recruiter" | "job_seeker", fallbackPath: string) {
+export function useRoleGuard(requiredRole: Role) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<GuardStatus>("checking");
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -19,20 +21,24 @@ export function useRoleGuard(requiredRole: "recruiter" | "job_seeker", fallbackP
     const current = getCurrentUser();
 
     if (!current) {
-      navigate("/login", { replace: true });
+      navigate(loginForRole(requiredRole), { replace: true });
+      return;
+    }
+
+    if (current.must_change_password) {
+      navigate("/change-password", { replace: true });
       return;
     }
 
     if (current.role !== requiredRole) {
-      navigate(fallbackPath, { replace: true });
+      navigate(homeForRole(current.role), { replace: true });
       return;
     }
 
     setUser(current);
     setStatus("authorized");
-    // Re-run whenever the route/role requirement changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiredRole, fallbackPath]);
+  }, [requiredRole]);
 
   return { status, user };
 }

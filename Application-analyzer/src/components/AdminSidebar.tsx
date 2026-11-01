@@ -11,6 +11,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         { path: "/candidates", icon: "fa-solid fa-users", label: "Candidates" },
         { path: "/jobs", icon: "fa-solid fa-briefcase", label: "Jobs" },
         { path: "/calendar", icon: "fa-solid fa-calendar", label: "Calendar" },
+        { path: "/team", icon: "fa-solid fa-people-group", label: "Team" },
         { path: "/reports", icon: "fa-solid fa-chart-line", label: "Reports" },
     ];
 

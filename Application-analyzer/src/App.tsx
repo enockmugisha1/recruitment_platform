@@ -16,8 +16,6 @@ import Candidates from './pages/Candidates'
 import CandidateDetail from './pages/CandidateDetail'
 import Reports from './pages/Reports'
 import Calendar from './pages/Calendar'
-import CandidateLayout from './features/candidates/layout/CandidateLayout'
-import CandGeneral from './features/candidates/pages/CandGeneral'
 import JobSeekerDashboard from './pages/JobSeekerDashboard'
 import Profile from './pages/Profile'
 import BrowseJobs from './pages/BrowseJobs'
@@ -30,10 +28,16 @@ import JobSeekerLayout from './layouts/JobSeekerLayout'
 import SharedLayout from './layouts/SharedLayout'
 
 import ErrorBoundary from './components/ErrorBoundary'
+import Team from './pages/Team'
+import ChangePassword from './pages/ChangePassword'
+import BusinessLogin from './pages/business/BusinessLogin'
+import BusinessLayout from './pages/business/BusinessLayout'
+import BusinessCompanies from './pages/business/BusinessCompanies'
+import BusinessCompanyDetail from './pages/business/BusinessCompanyDetail'
 
 const router = createBrowserRouter(createRoutesFromElements(
   <Route errorElement={<ErrorBoundary />}>
-    {/* Admin/Recruiter Routes */}
+    {/* Recruiter Routes */}
     <Route path='/' element={<AdminLayout />}>
       <Route index element={<Home />} />
       <Route path='/jobs' element={<Jobs />} />
@@ -41,15 +45,20 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path='/jobs/:id' element={<JobDetail />} />
       <Route path="/candidates" element={<Candidates />} />
       <Route path="/candidates/:id" element={<CandidateDetail />} />
-      <Route path="/candidates/:candId" element={<CandidateLayout />}>
-        <Route index element={<CandGeneral />} />
-        <Route path='evaluations' element={<h1>evaluations route</h1>} />
-        <Route path='experience' element={<h1>experience route</h1>} />
-        <Route path='education' element={<h1>education route</h1>} />
-      </Route>
       <Route path="/reports" element={<Reports />} />
       <Route path="/calendar" element={<Calendar />} />
+      <Route path="/team" element={<Team />} />
     </Route>
+
+    {/* Business portal (ThinkGreen Afrika): register companies, create their recruiters */}
+    <Route path='/business/login' element={<BusinessLogin />} />
+    <Route path='/business' element={<BusinessLayout />}>
+      <Route index element={<BusinessCompanies />} />
+      <Route path='companies/:id' element={<BusinessCompanyDetail />} />
+    </Route>
+
+    {/* Any logged-in user: choose / change your password */}
+    <Route path='/change-password' element={<ChangePassword />} />
 
     {/* Job Seeker Routes */}
     <Route element={<JobSeekerLayout />}>

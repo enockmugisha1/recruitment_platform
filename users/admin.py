@@ -20,7 +20,7 @@ class MyUserAdmin(UserAdmin):
     
     fieldsets = UserAdmin.fieldsets + (
         ("Role & Verification", {
-            "fields": ("role", "is_email_verified")
+            "fields": ("role", "is_email_verified", "must_change_password")
         }),
         ("Security", {
             "fields": ("failed_login_attempts", "account_locked_until", "last_login_ip")
