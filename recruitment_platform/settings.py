@@ -311,7 +311,25 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+# The address every platform email is sent from. Use a real no-reply mailbox on a
+# domain your email provider has verified, e.g. no-reply@yourdomain.org
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@recruitment.com')
+# Display name shown in the inbox: "ThinkGreen Afrika <no-reply@...>"
+EMAIL_FROM_NAME = os.environ.get('EMAIL_FROM_NAME', 'ThinkGreen Afrika')
+# Don't let a slow mail server hang a worker
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '15'))
+
+# ---- AI / ML analysis of submitted applications -------------------------------
+# Full URL of the ML service endpoint that analyses one application (see
+# AI_ANALYSIS_CONTRACT.md). Leave empty until the model is deployed: applications
+# are then marked "AI analysis not available" instead of failing.
+ML_SERVICE_URL = os.environ.get('ML_SERVICE_URL', '').strip()
+ML_SERVICE_API_KEY = os.environ.get('ML_SERVICE_API_KEY', '').strip()
+ML_SERVICE_TIMEOUT = int(os.environ.get('ML_SERVICE_TIMEOUT', '90'))
+
+# Run emails / ML calls inline instead of in a background thread (used by tests)
+import sys as _sys
+BACKGROUND_TASKS_SYNC = os.environ.get('BACKGROUND_TASKS_SYNC', '').lower() in ('1', 'true') or 'test' in _sys.argv
 
 # Public address of the web app. Used for the login link in the emails sent to
 # recruiters when their account is created.

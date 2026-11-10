@@ -32,7 +32,9 @@ import Team from './pages/Team'
 import ChangePassword from './pages/ChangePassword'
 import BusinessLogin from './pages/business/BusinessLogin'
 import BusinessLayout from './pages/business/BusinessLayout'
+import BusinessDashboard from './pages/business/BusinessDashboard'
 import BusinessCompanies from './pages/business/BusinessCompanies'
+import BusinessRecruiters from './pages/business/BusinessRecruiters'
 import BusinessCompanyDetail from './pages/business/BusinessCompanyDetail'
 
 const router = createBrowserRouter(createRoutesFromElements(
@@ -53,7 +55,9 @@ const router = createBrowserRouter(createRoutesFromElements(
     {/* Business portal (ThinkGreen Afrika): register companies, create their recruiters */}
     <Route path='/business/login' element={<BusinessLogin />} />
     <Route path='/business' element={<BusinessLayout />}>
-      <Route index element={<BusinessCompanies />} />
+      <Route index element={<BusinessDashboard />} />
+      <Route path='companies' element={<BusinessCompanies />} />
+      <Route path='recruiters' element={<BusinessRecruiters />} />
       <Route path='companies/:id' element={<BusinessCompanyDetail />} />
     </Route>
 

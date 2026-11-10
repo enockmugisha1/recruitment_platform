@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import axios from "../api/axios";
 import StatusBadge from "../components/StatusBadge";
 import ApplicationStatusControl from "../components/ApplicationStatusControl";
+import AIAnalysisPanel from "../components/AIAnalysisPanel";
 import { Application, APPLICATION_STATUS_LABELS } from "../api/services";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -25,6 +26,23 @@ export default function CandidateDetail() {
     useEffect(() => {
         if (id) fetchCandidateDetails();
     }, [id]);
+
+    // While the ML model is still working, check back every few seconds
+    // (stops once it finishes, fails, or after ~4 minutes)
+    const aiState = application?.ai_analysis?.status;
+    useEffect(() => {
+        if (!id || (aiState !== "pending" && aiState !== "processing")) return;
+        let tries = 0;
+        const timer = setInterval(async () => {
+            tries += 1;
+            if (tries > 48) return clearInterval(timer);
+            try {
+                const response = await axios.get(`/access/applications/${id}/`);
+                setApplication(response.data);
+            } catch { /* keep trying */ }
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [id, aiState]);
 
     const fetchCandidateDetails = async () => {
         try {
@@ -251,6 +269,14 @@ export default function CandidateDetail() {
                             </div>
                         </div>
                     </div>
+
+                    {application.ai_analysis && (
+                        <AIAnalysisPanel
+                            applicationId={application.id}
+                            analysis={application.ai_analysis}
+                            onUpdated={(updated) => setApplication((prev) => (prev ? { ...prev, ...updated } : updated))}
+                        />
+                    )}
 
                     {/* Status history: every step, when, and which recruiter moved it */}
                     <div className="modern-card p-6">

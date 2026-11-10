@@ -183,7 +183,7 @@ export default function TeamManager({ api, canManage, selfEmail, onChanged }: Pr
                     </td>
                     <td className="px-6 py-3">
                       {!m.is_active ? (
-                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">Deactivated</span>
+                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">Frozen</span>
                       ) : m.password_change_pending ? (
                         <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Awaiting first login</span>
                       ) : (
@@ -204,9 +204,9 @@ export default function TeamManager({ api, canManage, selfEmail, onChanged }: Pr
                             {m.is_company_admin ? "Remove manager" : "Make manager"}
                           </button>
                           <button disabled={busy || isSelf}
-                            onClick={() => change(m, { is_active: !m.is_active }, m.is_active ? "Recruiter deactivated" : "Recruiter reactivated")}
+                            onClick={() => change(m, { is_active: !m.is_active }, m.is_active ? "Recruiter frozen" : "Recruiter unfrozen")}
                             className={`rounded-md px-2.5 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${m.is_active ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"}`}>
-                            {m.is_active ? "Deactivate" : "Reactivate"}
+                            {m.is_active ? "Freeze" : "Unfreeze"}
                           </button>
                         </div>
                       </td>

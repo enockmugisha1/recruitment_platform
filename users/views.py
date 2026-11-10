@@ -148,7 +148,7 @@ class LoginUserView(views.APIView):
                     if not user.is_active:
                         log_security_event("LOGIN_INACTIVE", user_email, "Login on deactivated account", "WARNING")
                         return Response(
-                            {"error": "This account has been deactivated. Please contact your company administrator."},
+                            {"error": "This account has been frozen. Please contact your company administrator."},
                             status=status.HTTP_403_FORBIDDEN
                         )
                     if user.role == 'recruiter':
@@ -160,7 +160,7 @@ class LoginUserView(views.APIView):
                             )
                         if not profile.company.is_active:
                             return Response(
-                                {"error": "Your company's account is currently inactive. Please contact ThinkGreen Afrika."},
+                                {"error": "Your company's account is frozen. Please contact ThinkGreen Afrika."},
                                 status=status.HTTP_403_FORBIDDEN
                             )
 

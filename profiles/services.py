@@ -12,7 +12,7 @@ import string
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
+from recruitment_platform.emailing import send_platform_email
 from django.db import transaction
 
 from .models import RecruiterProfile
@@ -64,12 +64,7 @@ def send_credentials_email(user, company, temporary_password, reset=False):
         f"If you were not expecting this email, please ignore it or contact your company administrator.\n\n"
         f"ThinkGreen Afrika"
     )
-    try:
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
-        return True
-    except Exception as exc:  # SMTP down, bad credentials, ...
-        logger.error("Could not send credentials email to %s: %s", user.email, exc)
-        return False
+    return send_platform_email(subject, message, user.email)
 
 
 @transaction.atomic

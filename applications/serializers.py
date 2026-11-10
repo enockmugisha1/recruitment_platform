@@ -65,6 +65,8 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
 
     company_name = serializers.CharField(source='job.company.name', read_only=True, default=None)
     status_history = serializers.SerializerMethodField()
+    # What the ML model made of this application. Recruiters only (see to_representation).
+    ai_analysis = serializers.SerializerMethodField()
 
     # Alias kept for older frontend code that reads `submitted_at`
     submitted_at = serializers.DateTimeField(source='applied_at', read_only=True)
@@ -78,6 +80,31 @@ class JobSeekerApplicationSerializer(serializers.ModelSerializer):
         # NOTE: this used to sit *outside* Meta, where DRF ignores it, which
         # meant an applicant could post their own `status`.
         read_only_fields = ['status', 'applied_at']
+
+    def get_ai_analysis(self, obj):
+        analysis = getattr(obj, 'ai_analysis', None)
+        if analysis is None:
+            # submitted before AI analysis existed: nothing has run for it
+            return {'status': 'unavailable', 'match_score': None, 'recommendation': '', 'summary': '',
+                    'details': {}, 'error': '', 'analyzed_at': None}
+        return {
+            'status': analysis.status,
+            'match_score': analysis.match_score,
+            'recommendation': analysis.recommendation,
+            'summary': analysis.summary,
+            'details': analysis.result,
+            'error': analysis.error,
+            'analyzed_at': analysis.analyzed_at,
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # AI results are for the company's recruiters only. Anyone else (the
+        # applicant included) doesn't get the field at all, not even empty.
+        request = self.context.get('request')
+        if request is None or getattr(request.user, 'role', None) != 'recruiter':
+            data.pop('ai_analysis', None)
+        return data
 
     def get_picture(self, obj):
         pic = obj.applicant.picture

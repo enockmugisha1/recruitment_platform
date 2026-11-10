@@ -24,6 +24,17 @@ class PasswordChangeAwareJWTAuthentication(JWTAuthentication):
             return None
 
         user, _token = result
+
+        # A frozen company locks its recruiters out straight away, even if they
+        # are already logged in (login alone is blocked separately).
+        if user.role == 'recruiter':
+            profile = getattr(user, 'recruiter_profile', None)
+            if profile is not None and profile.company_id and not profile.company.is_active:
+                raise exceptions.PermissionDenied({
+                    'detail': "Your company's account is frozen. Please contact ThinkGreen Afrika.",
+                    'code': 'account_frozen',
+                })
+
         if getattr(user, 'must_change_password', False):
             path = request.path.rstrip('/')
             if not any(path.endswith(allowed) for allowed in ALLOWED_WHILE_PASSWORD_CHANGE_PENDING):

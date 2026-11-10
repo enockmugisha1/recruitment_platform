@@ -148,7 +148,7 @@ class BusinessOnboardingTests(TestCase):
     def test_email_failure_still_returns_the_password(self):
         from unittest import mock
         cid = self._company()
-        with mock.patch('profiles.services.send_mail', side_effect=OSError('smtp down')):
+        with mock.patch('django.core.mail.message.EmailMultiAlternatives.send', side_effect=OSError('smtp down')):
             res = self._recruiter(cid)
         self.assertEqual(res.status_code, 201)
         self.assertFalse(res.data['email_sent'])
@@ -272,3 +272,140 @@ class CompanyTeamTests(TestCase):
         c.force_authenticate(make_user('s@x.com', 'job_seeker'))
         self.assertEqual(c.get('/company/me/').status_code, 403)
         self.assertEqual(c.get('/company/team/').status_code, 403)
+
+
+class BusinessDashboardTests(TestCase):
+    """Platform-wide numbers + freezing from one place (business accounts only)."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.utils import timezone
+        from applications.models import Job, JobSeekerApplication, ApplicationAIAnalysis
+        from profiles.models import JobSeekerProfile
+
+        self.business = make_user('biz@tga.org', 'business')
+        self.client = APIClient()
+        self.client.force_authenticate(self.business)
+
+        self.co_a = Company.objects.create(name='Alpha')
+        self.co_b = Company.objects.create(name='Beta', is_active=False)   # frozen
+        self.co_empty = Company.objects.create(name='Gamma')                # no recruiters
+
+        def rec(email, company, **flags):
+            user = make_user(email, 'recruiter', first_name=email.split('@')[0].title(), **flags)
+            return user, RecruiterProfile.objects.create(user=user, company=company, company_name=company.name)
+
+        self.ra, self.pa = rec('ann@a.com', self.co_a)
+        self.rpend, self.ppend = rec('pat@a.com', self.co_a, must_change_password=True)   # never logged in
+        self.rfrozen, self.pfrozen = rec('fay@a.com', self.co_a, is_active=False)
+        self.rb, self.pb = rec('bob@b.com', self.co_b)
+
+        today = timezone.localdate()
+
+        def job(profile, title, days):
+            return Job.objects.create(recruiter=profile, company=profile.company, title=title, description='d',
+                                      requirements='r', location='K', job_type='full_time',
+                                      deadline=today + timedelta(days=days))
+        self.open_a = job(self.pa, 'Open A', 10)
+        self.old_a = job(self.pa, 'Old A', -5)
+        self.open_b = job(self.pb, 'Open B', 10)
+
+        seeker = make_user('s@x.com', 'job_seeker')
+        profile = JobSeekerProfile.objects.create(user=seeker, location='K', gender='N', phone='1')
+        self.apps = []
+        for j, st in ((self.open_a, 'submitted'), (self.old_a, 'under_review'), (self.open_b, 'accepted')):
+            a = JobSeekerApplication.objects.create(
+                job=j, applicant=profile, status=st,
+                resume=SimpleUploadedFile('cv.pdf', b'%PDF-1.4', content_type='application/pdf'))
+            self.apps.append(a)
+        ApplicationAIAnalysis.objects.filter(application=self.apps[0]).update(status='completed', match_score=80)
+        ApplicationAIAnalysis.objects.filter(application=self.apps[1]).update(status='completed', match_score=60)
+
+    def test_only_business_can_see_the_dashboard(self):
+        for user in (make_user('s2@x.com', 'job_seeker'), self.ra):
+            c = APIClient()
+            c.force_authenticate(user)
+            self.assertEqual(c.get('/business/dashboard/').status_code, 403)
+            self.assertEqual(c.get('/business/recruiters/').status_code, 403)
+        self.assertEqual(APIClient().get('/business/dashboard/').status_code, 401)
+
+    def test_overall_numbers(self):
+        d = self.client.get('/business/dashboard/').data
+        self.assertEqual(d['companies'], {'total': 3, 'active': 2, 'frozen': 1})
+        self.assertEqual(d['recruiters'], {'total': 4, 'active': 3, 'frozen': 1, 'awaiting_first_login': 1})
+        self.assertEqual(d['job_seekers']['total'], 1)
+        self.assertEqual((d['jobs']['total'], d['jobs']['open'], d['jobs']['expired']), (3, 2, 1))
+        self.assertEqual(d['applications']['total'], 3)
+        self.assertEqual(d['applications']['by_status'],
+                         {'submitted': 1, 'under_review': 1, 'shortlisted': 0, 'accepted': 1, 'rejected': 0})
+        self.assertEqual(d['applications']['last_7_days'], 3)
+        self.assertEqual(d['ai']['completed'], 2)
+        self.assertEqual(d['ai']['average_score'], 70)
+
+    def test_trend_covers_30_days_and_counts_today(self):
+        trend = self.client.get('/business/dashboard/').data['trend']
+        self.assertEqual(len(trend), 30)
+        self.assertEqual(trend[-1]['applications'], 3)
+        self.assertEqual(trend[-1]['jobs'], 3)
+        self.assertEqual(trend[0]['applications'], 0)
+
+    def test_top_companies_and_attention_lists(self):
+        d = self.client.get('/business/dashboard/').data
+        top = d['top_companies'][0]
+        self.assertEqual((top['name'], top['applications'], top['jobs']), ('Alpha', 2, 2))
+
+        attention = d['attention']
+        self.assertEqual([c['name'] for c in attention['companies_without_recruiters']['items']], ['Gamma'])
+        self.assertEqual(attention['awaiting_first_login']['items'][0]['email'], 'pat@a.com')
+        self.assertEqual(attention['frozen_recruiters']['items'][0]['email'], 'fay@a.com')
+        # no applicant details leak into the dashboard
+        self.assertNotIn('s@x.com', str(d))
+
+    def test_company_list_carries_per_company_stats(self):
+        rows = {c['name']: c for c in self.client.get('/business/companies/').data['results']}
+        a = rows['Alpha']
+        self.assertEqual((a['recruiter_count'], a['active_recruiter_count'], a['frozen_recruiter_count']), (3, 2, 1))
+        self.assertEqual((a['job_count'], a['open_job_count'], a['application_count']), (2, 1, 2))
+        self.assertEqual(rows['Gamma']['recruiter_count'], 0)
+
+    def test_recruiter_directory_search_and_filters(self):
+        def names(**params):
+            return sorted(r['email'] for r in self.client.get('/business/recruiters/', params).data)
+        self.assertEqual(len(names()), 4)
+        self.assertEqual(names(status='frozen'), ['fay@a.com'])
+        self.assertEqual(names(status='pending'), ['pat@a.com'])
+        self.assertEqual(names(status='active'), ['ann@a.com', 'bob@b.com'])
+        self.assertEqual(names(company=self.co_b.id), ['bob@b.com'])
+        self.assertEqual(names(search='beta'), ['bob@b.com'])
+        row = self.client.get('/business/recruiters/', {'search': 'ann'}).data[0]
+        self.assertEqual((row['company_name'], row['company_is_active']), ('Alpha', True))
+
+    def test_freeze_and_unfreeze_a_recruiter_from_the_directory(self):
+        url = f'/business/recruiters/{self.pa.id}/'
+        self.assertEqual(self.client.patch(url, {'is_active': False}, format='json').status_code, 200)
+        login = {'email': 'ann@a.com', 'password': PASSWORD}
+        self.assertEqual(APIClient().post('/auth/login/', login, format='json').status_code, 403)
+        self.client.patch(url, {'is_active': True}, format='json')
+        self.assertEqual(APIClient().post('/auth/login/', login, format='json').status_code, 200)
+
+        reset = self.client.post(f'{url}reset-password/')
+        self.assertEqual(reset.status_code, 200)
+        self.assertTrue(User.objects.get(email='ann@a.com').must_change_password)
+        self.assertEqual(self.client.patch('/business/recruiters/99999/', {'is_active': False}, format='json').status_code, 404)
+
+    def test_freezing_a_company_locks_out_recruiters_already_logged_in(self):
+        login = APIClient().post('/auth/login/', {'email': 'ann@a.com', 'password': PASSWORD}, format='json')
+        self.assertEqual(login.status_code, 200)
+        token = f"Bearer {login.data['access']}"
+        live = APIClient()
+        live.credentials(HTTP_AUTHORIZATION=token)
+        self.assertEqual(live.get('/access/jobs/').status_code, 200)
+
+        self.client.patch(f'/business/companies/{self.co_a.id}/', {'is_active': False}, format='json')
+        blocked = live.get('/access/jobs/')
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.data['code'], 'account_frozen')
+
+        self.client.patch(f'/business/companies/{self.co_a.id}/', {'is_active': True}, format='json')
+        self.assertEqual(live.get('/access/jobs/').status_code, 200)

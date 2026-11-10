@@ -13,6 +13,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from .models import JobSeekerApplication, Job, CalendarEvent, ApplicationStatusEvent
 from .permissions import IsJobPoster, IsJobApplicant, IsCompanyJob
+from .ai import queue_analysis, ml_is_configured
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
@@ -247,7 +248,7 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
         base = JobSeekerApplication.objects.select_related(
-            'applicant__user', 'job__company'
+            'applicant__user', 'job__company', 'ai_analysis'
         ).prefetch_related('status_events__changed_by')
 
         recruiter = _recruiter_profile(user)
@@ -306,6 +307,23 @@ class JobSeekerApplicationViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         self._require_owner_applicant(instance)
         instance.delete()
+
+    @swagger_auto_schema(method='post', request_body=None, operation_summary="Run / re-run the AI analysis (recruiter)")
+    @action(detail=True, methods=['post'], url_path='analyze')
+    def analyze(self, request, pk=None):
+        """Ask the ML service to (re)analyse this application. Recruiters of the job's company only."""
+        application = self.get_object()
+        if _recruiter_profile(request.user) is None:
+            raise PermissionDenied("Only recruiters can run the AI analysis.")
+        if not ml_is_configured():
+            return Response(
+                {'error': 'The AI analysis service is not set up yet.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        queue_analysis(application, force=False)
+        # re-read with the fresh analysis row
+        application = self.get_queryset().get(pk=application.pk)
+        return Response(self.get_serializer(application).data, status=status.HTTP_202_ACCEPTED)
 
     @swagger_auto_schema(
         method='post',

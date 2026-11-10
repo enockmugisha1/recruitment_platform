@@ -185,7 +185,7 @@ class JobSeekerApplicationModelTest(TestCase):
 # Company scoping + application review flow
 # ---------------------------------------------------------------------------
 from rest_framework.test import APIClient
-from applications.models import ApplicationStatusEvent
+from applications.models import ApplicationStatusEvent, ApplicationAIAnalysis
 
 
 class ApplicationFlowTests(TestCase):
@@ -378,3 +378,184 @@ class ApplicationFlowTests(TestCase):
         self.assertEqual(self.client.delete(f'/access/jobs/{self.job_a.id}/').status_code, 403)
         self.client.force_authenticate(self.rec_a)
         self.assertEqual(self.client.delete(f'/access/jobs/{self.job_a.id}/').status_code, 204)
+
+
+# ---------------------------------------------------------------------------
+# Submission email + recruiter-only AI analysis
+# ---------------------------------------------------------------------------
+from unittest import mock
+from django.core import mail
+from django.conf import settings as django_settings
+from django.test import override_settings
+
+ML_URL = 'http://ml.test/api/v1/ai/analyze-application/'
+ML_RESULT = {
+    'match_score': 85,
+    'recommendation': 'Strong match - recommend for interview',
+    'summary': 'Experienced developer with a strong skills match.',
+    'matched_skills': ['Python', 'Django'],
+    'missing_skills': ['Docker'],
+    'score_breakdown': {'skills': 75, 'experience': 95, 'education': 90, 'overall': 85},
+}
+
+
+def ml_response(payload=None, status=200):
+    response = mock.Mock(status_code=status)
+    response.json.return_value = payload if payload is not None else ML_RESULT
+    if status >= 400:
+        import requests
+        error = requests.HTTPError(response=response)
+        response.raise_for_status.side_effect = error
+    else:
+        response.raise_for_status.return_value = None
+    return response
+
+
+class AIAndEmailTests(TestCase):
+    setUp = ApplicationFlowTests.setUp
+    _apply = ApplicationFlowTests._apply
+
+    def _submit(self, job=None):
+        """Apply and let the on-commit work (email, AI call) run, as it would in production."""
+        with self.captureOnCommitCallbacks(execute=True):
+            return self._apply(job or self.job_a)
+
+    # ---- the "we received your application" email ----
+    def test_job_seeker_gets_a_no_reply_confirmation_email(self):
+        res = self._submit()
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['s@x.com'])
+        self.assertIn('ThinkGreen Afrika', message.from_email)
+        self.assertIn(django_settings.DEFAULT_FROM_EMAIL, message.from_email)
+        self.assertIn('Job A', message.subject)
+        self.assertIn('Sam', message.body)
+        self.assertIn('Company A', message.body)
+        self.assertIn('keep an eye', message.body)
+        self.assertIn('/my-applications', message.body)
+        self.assertIn("don't reply", message.body)
+        html = message.alternatives[0][0]
+        self.assertIn('Track my application', html)
+
+    def test_confirmation_is_not_sent_for_a_rejected_submission(self):
+        self._submit()
+        mail.outbox.clear()
+        self.assertEqual(self._submit().status_code, 400)   # duplicate application
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_mail_server_failure_does_not_break_submission(self):
+        with mock.patch('django.core.mail.message.EmailMultiAlternatives.send', side_effect=OSError('smtp down')):
+            res = self._submit()
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(JobSeekerApplication.objects.count(), 1)
+
+    def test_status_change_emails_the_applicant(self):
+        app_id = self._submit().data['id']
+        mail.outbox.clear()
+        self.client.force_authenticate(self.rec_a)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(f'/access/applications/{app_id}/status/', {'status': 'under_review'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['s@x.com'])
+        self.assertIn('Under Review', mail.outbox[0].subject)
+
+    # ---- AI analysis ----
+    def test_ai_marked_unavailable_until_the_ml_service_is_configured(self):
+        app_id = self._submit().data['id']
+        self.client.force_authenticate(self.rec_a)
+        data = self.client.get(f'/access/applications/{app_id}/').data
+        self.assertEqual(data['ai_analysis']['status'], 'unavailable')
+        self.assertIsNone(data['ai_analysis']['match_score'])
+        res = self.client.post(f'/access/applications/{app_id}/analyze/')
+        self.assertEqual(res.status_code, 503)
+
+    @override_settings(ML_SERVICE_URL=ML_URL, ML_SERVICE_API_KEY='secret-key')
+    def test_submission_is_analysed_and_recruiter_sees_the_result(self):
+        with mock.patch('applications.ai.requests.post', return_value=ml_response()) as post:
+            app_id = self._submit().data['id']
+
+        # what we sent: the resume file, job + applicant details, and the API key
+        kwargs = post.call_args.kwargs
+        self.assertEqual(post.call_args.args[0], ML_URL)
+        self.assertIn('resume', kwargs['files'])
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer secret-key')
+        self.assertIn('"title": "Job A"', kwargs['data']['job'])
+        self.assertIn('"years_of_experience": 3', kwargs['data']['applicant'])
+
+        for recruiter in (self.rec_a, self.rec_a2):          # any recruiter of the company
+            self.client.force_authenticate(recruiter)
+            ai = self.client.get(f'/access/applications/{app_id}/').data['ai_analysis']
+            self.assertEqual(ai['status'], 'completed')
+            self.assertEqual(ai['match_score'], 85)
+            self.assertEqual(ai['recommendation'], 'Strong match - recommend for interview')
+            self.assertEqual(ai['details']['matched_skills'], ['Python', 'Django'])
+            self.assertIsNotNone(ai['analyzed_at'])
+
+        # the list view carries it too (the Candidates table shows the score)
+        listed = self.client.get('/access/applications/').data['results'][0]
+        self.assertEqual(listed['ai_analysis']['match_score'], 85)
+
+    @override_settings(ML_SERVICE_URL=ML_URL)
+    def test_ai_results_are_never_visible_to_the_job_seeker(self):
+        with mock.patch('applications.ai.requests.post', return_value=ml_response()):
+            created = self._submit()
+        self.assertNotIn('ai_analysis', created.data)
+
+        self.client.force_authenticate(self.seeker)
+        listed = self.client.get('/access/applications/').data['results'][0]
+        self.assertNotIn('ai_analysis', listed)
+        detail = self.client.get(f'/access/applications/{listed["id"]}/').data
+        self.assertNotIn('ai_analysis', detail)
+        self.assertNotIn('85', str(detail.get('status_history', '')))
+        # and they cannot trigger or read it through the analyze endpoint
+        self.assertEqual(self.client.post(f'/access/applications/{listed["id"]}/analyze/').status_code, 403)
+
+    @override_settings(ML_SERVICE_URL=ML_URL)
+    def test_other_companys_recruiter_cannot_see_or_run_the_analysis(self):
+        with mock.patch('applications.ai.requests.post', return_value=ml_response()):
+            app_id = self._submit().data['id']
+        self.client.force_authenticate(self.rec_b)
+        self.assertEqual(self.client.get(f'/access/applications/{app_id}/').status_code, 404)
+        self.assertEqual(self.client.post(f'/access/applications/{app_id}/analyze/').status_code, 404)
+
+    @override_settings(ML_SERVICE_URL=ML_URL)
+    def test_ml_failure_is_recorded_and_a_recruiter_can_retry(self):
+        import requests
+        with mock.patch('applications.ai.requests.post', side_effect=requests.ConnectionError('boom')):
+            app_id = self._submit().data['id']                      # submission itself still succeeds
+        self.client.force_authenticate(self.rec_a)
+        ai = self.client.get(f'/access/applications/{app_id}/').data['ai_analysis']
+        self.assertEqual(ai['status'], 'failed')
+        self.assertEqual(ai['error'], 'Could not reach the ML service.')
+
+        with mock.patch('applications.ai.requests.post', return_value=ml_response()):
+            with self.captureOnCommitCallbacks(execute=True):
+                res = self.client.post(f'/access/applications/{app_id}/analyze/')
+        # accepted and queued: the analysis itself finishes in the background
+        self.assertEqual(res.status_code, 202)
+        self.assertEqual(res.data['ai_analysis']['status'], 'pending')
+        ai = self.client.get(f'/access/applications/{app_id}/').data['ai_analysis']
+        self.assertEqual((ai['status'], ai['match_score']), ('completed', 85))
+
+    @override_settings(ML_SERVICE_URL=ML_URL)
+    def test_http_error_and_alternate_score_shapes(self):
+        with mock.patch('applications.ai.requests.post', return_value=ml_response(status=500)):
+            app_id = self._submit().data['id']
+        self.assertEqual(ApplicationAIAnalysis.objects.get(application_id=app_id).error, 'The ML service returned HTTP 500.')
+
+        from applications.ai import analyze_application
+        for payload, expected in (({'score': 71.6, 'summary': 'ok'}, 72),
+                                  ({'score_breakdown': {'overall': 64}}, 64),
+                                  ({'match_score': 250}, 100)):
+            with mock.patch('applications.ai.requests.post', return_value=ml_response(payload)):
+                analysis = analyze_application(app_id, force=True)
+            self.assertEqual((analysis.status, analysis.match_score), ('completed', expected))
+
+    @override_settings(ML_SERVICE_URL=ML_URL)
+    def test_missing_requests_package_does_not_break_the_app(self):
+        with mock.patch('applications.ai.requests', None):
+            app_id = self._submit().data['id']          # submitting still works
+        analysis = ApplicationAIAnalysis.objects.get(application_id=app_id)
+        self.assertEqual(analysis.status, 'failed')
+        self.assertIn('pip install requests', analysis.error)

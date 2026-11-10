@@ -63,7 +63,11 @@ def _run_django_validator(func, value):
 class CompanySerializer(serializers.ModelSerializer):
     """A company as the business sees it."""
     recruiter_count = serializers.IntegerField(read_only=True, default=0)
+    active_recruiter_count = serializers.IntegerField(read_only=True, default=0)
+    frozen_recruiter_count = serializers.IntegerField(read_only=True, default=0)
     job_count = serializers.IntegerField(read_only=True, default=0)
+    open_job_count = serializers.IntegerField(read_only=True, default=0)
+    application_count = serializers.IntegerField(read_only=True, default=0)
     created_at = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', read_only=True)
     updated_at = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S', read_only=True)
     website = serializers.URLField(required=False, allow_null=True, allow_blank=True)
@@ -73,7 +77,8 @@ class CompanySerializer(serializers.ModelSerializer):
         model = Company
         fields = [
             "id", "name", "website", "description", "location", "contact_email", "logo",
-            "is_active", "recruiter_count", "job_count", "created_at", "updated_at",
+            "is_active", "recruiter_count", "active_recruiter_count", "frozen_recruiter_count",
+            "job_count", "open_job_count", "application_count", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
@@ -106,11 +111,14 @@ class RecruiterMemberSerializer(serializers.ModelSerializer):
     password_change_pending = serializers.BooleanField(source="user.must_change_password", read_only=True)
     last_login = serializers.DateTimeField(source="user.last_login", read_only=True)
     jobs_posted = serializers.SerializerMethodField()
+    company_id = serializers.IntegerField(read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True, default="")
+    company_is_active = serializers.BooleanField(source="company.is_active", read_only=True, default=True)
 
     class Meta:
         model = RecruiterProfile
         fields = [
-            "id", "first_name", "last_name", "email", "is_company_admin", "is_active",
+            "id", "company_id", "company_name", "company_is_active", "first_name", "last_name", "email", "is_company_admin", "is_active",
             "password_change_pending", "last_login", "jobs_posted", "created_at",
         ]
 

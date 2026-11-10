@@ -79,6 +79,14 @@ axiosInstance.interceptors.response.use(
       originalRequest.url?.includes(endpoint)
     );
 
+    // The company was frozen while this recruiter was logged in
+    if (error.response?.status === 403 && error.response?.data?.code === 'account_frozen') {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/login?frozen=1';
+      return Promise.reject(error);
+    }
+
     // The server refuses everything except "change password" while a user is
     // still on a temporary password; send them to that screen.
     if (

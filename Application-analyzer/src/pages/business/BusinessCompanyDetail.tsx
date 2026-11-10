@@ -60,13 +60,13 @@ export default function BusinessCompanyDetail() {
     if (!company) return;
     const next = !company.is_active;
     const warning = next
-      ? `Reactivate ${company.name}?`
-      : `Deactivate ${company.name}? Its recruiters will not be able to log in and its jobs will be hidden from job seekers. Nothing is deleted.`;
+      ? `Unfreeze ${company.name}?`
+      : `Freeze ${company.name}? Its recruiters will be locked out immediately (even if logged in) and its jobs hidden from job seekers. Nothing is deleted and you can unfreeze it any time.`;
     if (!window.confirm(warning)) return;
     try {
       const updated = await businessService.updateCompany(companyId, { is_active: next });
       setCompany((prev) => (prev ? { ...prev, ...updated } : updated));
-      toast.success(next ? "Company reactivated" : "Company deactivated");
+      toast.success(next ? "Company unfrozen" : "Company frozen");
     } catch (err) {
       toast.error(apiError(err));
     }
@@ -84,7 +84,7 @@ export default function BusinessCompanyDetail() {
     return (
       <div className="rounded-2xl bg-white p-16 text-center shadow-sm">
         <p className="mb-4 text-gray-600">Company not found.</p>
-        <Link to="/business" className="font-semibold text-green-600 hover:underline">Back to companies</Link>
+        <Link to="/business/companies" className="font-semibold text-green-600 hover:underline">Back to companies</Link>
       </div>
     );
   }
@@ -95,7 +95,7 @@ export default function BusinessCompanyDetail() {
   return (
     <div className="space-y-6">
       <ToastContainer />
-      <Link to="/business" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-green-600">
+      <Link to="/business/companies" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-green-600">
         <i className="fa-solid fa-chevron-left"></i>All companies
       </Link>
 
@@ -128,8 +128,8 @@ export default function BusinessCompanyDetail() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold text-gray-800">{company.name}</h1>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${company.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                  {company.is_active ? "Active" : "Inactive"}
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${company.is_active ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                  {company.is_active ? "Active" : "Frozen"}
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500">
@@ -151,8 +151,8 @@ export default function BusinessCompanyDetail() {
                 <i className="fa-solid fa-pen mr-2"></i>Edit
               </button>
               <button onClick={toggleActive}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${company.is_active ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"}`}>
-                {company.is_active ? "Deactivate" : "Reactivate"}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${company.is_active ? "bg-blue-500 hover:bg-blue-600" : "bg-green-600 hover:bg-green-700"}`}>
+                <><i className={`fa-solid ${company.is_active ? "fa-snowflake" : "fa-sun"} mr-2`}></i>{company.is_active ? "Freeze company" : "Unfreeze company"}</>
               </button>
             </div>
           </div>

@@ -162,6 +162,12 @@ export const applicationService = {
     return response.data;
   },
 
+  // Recruiter: run (or re-run) the AI analysis for an application
+  analyzeApplication: async (applicationId: number) => {
+    const response = await axios.post(`/access/applications/${applicationId}/analyze/`);
+    return response.data as Application;
+  },
+
   // Recruiter: move an application along the review pipeline
   // (submitted -> under_review -> shortlisted -> accepted, or rejected)
   updateApplicationStatus: async (applicationId: number, status: ApplicationStatus) => {
@@ -316,13 +322,20 @@ export interface Company {
   logo?: string | null;
   is_active: boolean;
   recruiter_count?: number;
+  active_recruiter_count?: number;
+  frozen_recruiter_count?: number;
   job_count?: number;
+  open_job_count?: number;
+  application_count?: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface RecruiterMember {
   id: number;
+  company_id?: number;
+  company_name?: string;
+  company_is_active?: boolean;
   first_name: string;
   last_name: string;
   email: string;
@@ -362,6 +375,34 @@ const teamApi = (base: string) => ({
 
 export type TeamApi = ReturnType<typeof teamApi>;
 
+export interface BusinessDashboard {
+  generated_at: string;
+  companies: { total: number; active: number; frozen: number };
+  recruiters: { total: number; active: number; frozen: number; awaiting_first_login: number };
+  job_seekers: { total: number; new_last_30_days: number };
+  jobs: { total: number; open: number; expired: number; posted_last_30_days: number };
+  applications: {
+    total: number;
+    last_7_days: number;
+    last_30_days: number;
+    by_status: Record<'submitted' | 'under_review' | 'shortlisted' | 'accepted' | 'rejected', number>;
+  };
+  ai: { pending: number; processing: number; completed: number; failed: number; unavailable: number; average_score: number | null };
+  trend: { date: string; applications: number; jobs: number }[];
+  top_companies: { id: number; name: string; jobs: number; applications: number; is_active: boolean }[];
+  attention: {
+    companies_without_recruiters: { count: number; items: { id: number; name: string; is_active: boolean }[] };
+    awaiting_first_login: {
+      count: number;
+      items: { id: number; name: string; email: string; company_id: number; company_name: string; created_at: string }[];
+    };
+    frozen_recruiters: {
+      count: number;
+      items: { id: number; name: string; email: string; company_id: number; company_name: string }[];
+    };
+  };
+}
+
 export const businessService = {
   listCompanies: async (params?: { search?: string }) => {
     const data = (await axios.get('/business/companies/', { params })).data;
@@ -372,6 +413,17 @@ export const businessService = {
   updateCompany: async (id: number, data: Partial<Company>): Promise<Company> =>
     (await axios.patch(`/business/companies/${id}/`, data)).data,
   team: (companyId: number) => teamApi(`/business/companies/${companyId}/recruiters`),
+
+  // Platform-wide dashboard (counts only)
+  dashboard: async (): Promise<BusinessDashboard> => (await axios.get('/business/dashboard/')).data,
+
+  // Every recruiter on the platform
+  listRecruiters: async (params?: { search?: string; status?: string; company?: number }): Promise<RecruiterMember[]> =>
+    (await axios.get('/business/recruiters/', { params })).data,
+  updateRecruiter: async (id: number, data: Partial<Pick<RecruiterMember, 'is_active' | 'is_company_admin'>>): Promise<RecruiterMember> =>
+    (await axios.patch(`/business/recruiters/${id}/`, data)).data,
+  resetRecruiterPassword: async (id: number): Promise<RecruiterCredentials> =>
+    (await axios.post(`/business/recruiters/${id}/reset-password/`)).data,
 };
 
 export const companyService = {
@@ -415,6 +467,21 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   rejected: 'Rejected',
 };
 
+/** What the ML model made of an application. Only ever sent to recruiters. */
+export type AIAnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'unavailable';
+
+export interface AIAnalysis {
+  status: AIAnalysisStatus;
+  match_score: number | null;
+  recommendation: string;
+  summary: string;
+  // The full ML response: matched_skills, missing_skills, strengths, weaknesses,
+  // experience_match, education_match, score_breakdown, next_steps, ...
+  details: Record<string, any>;
+  error: string;
+  analyzed_at: string | null;
+}
+
 export interface StatusHistoryEntry {
   status: ApplicationStatus;
   changed_at: string;
@@ -446,6 +513,7 @@ export interface Application {
   website?: string | null;
   company_name?: string | null;
   status_history?: StatusHistoryEntry[];
+  ai_analysis?: AIAnalysis;
   resume: string;
   cover_letter?: string | null;
   status: ApplicationStatus;

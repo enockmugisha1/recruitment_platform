@@ -8,7 +8,8 @@ Company onboarding API.
 
 Both share the same team logic (``TeamMixin``) so the two behave identically.
 """
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, status, viewsets
@@ -101,9 +102,14 @@ class BusinessCompanyViewSet(TeamMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return Company.objects.none()
+        today = timezone.localdate()
         return Company.objects.annotate(
             recruiter_count=Count('recruiters', distinct=True),
+            active_recruiter_count=Count('recruiters', filter=Q(recruiters__user__is_active=True), distinct=True),
+            frozen_recruiter_count=Count('recruiters', filter=Q(recruiters__user__is_active=False), distinct=True),
             job_count=Count('jobs', distinct=True),
+            open_job_count=Count('jobs', filter=Q(jobs__deadline__gte=today), distinct=True),
+            application_count=Count('jobs__applications', distinct=True),
         )
 
     def perform_create(self, serializer):

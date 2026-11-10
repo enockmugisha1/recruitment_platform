@@ -162,6 +162,9 @@ export default function Candidates() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Job Applied For
                     </th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      AI Match
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
@@ -205,6 +208,24 @@ export default function Candidates() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {app.job_title}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {app.ai_analysis?.status === "completed" && app.ai_analysis.match_score != null ? (
+                            <span
+                              className={`text-lg font-bold ${app.ai_analysis.match_score >= 75
+                                ? "text-green-600"
+                                : app.ai_analysis.match_score >= 50
+                                  ? "text-amber-500"
+                                  : "text-red-500"
+                                }`}
+                            >
+                              {app.ai_analysis.match_score}
+                            </span>
+                          ) : app.ai_analysis?.status === "pending" || app.ai_analysis?.status === "processing" ? (
+                            <span className="text-xs text-purple-500">Analysing...</span>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <StatusBadge status={app.status || "submitted"} />

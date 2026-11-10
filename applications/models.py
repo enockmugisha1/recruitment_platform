@@ -104,6 +104,34 @@ class ApplicationStatusEvent(models.Model):
         return f"{self.application_id}: {self.status}"
 
 
+# What the ML model made of one submitted application. RECRUITER-ONLY: this is
+# never included in anything a job seeker can fetch.
+class ApplicationAIAnalysis(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),          # queued, waiting for the ML service
+        ('processing', 'Processing'),    # ML service is working on it
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('unavailable', 'Unavailable'),  # ML service not configured / deployed yet
+    ]
+
+    application = models.OneToOneField(JobSeekerApplication, on_delete=models.CASCADE, related_name='ai_analysis')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    match_score = models.PositiveSmallIntegerField(null=True, blank=True)  # 0-100
+    recommendation = models.CharField(max_length=255, blank=True, default='')
+    summary = models.TextField(blank=True, default='')
+    # the full response from the ML service (skills, strengths, breakdown, ...)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True, default='')
+    attempts = models.PositiveSmallIntegerField(default=0)
+    analyzed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AI analysis of application {self.application_id}: {self.status}"
+
+
 # Defines Calendar Event model for interview scheduling
 class CalendarEvent(models.Model):
     EVENT_TYPE_CHOICES = (

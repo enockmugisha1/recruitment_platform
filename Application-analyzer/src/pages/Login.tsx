@@ -1,5 +1,5 @@
-import { FormEvent, useRef, useState } from "react";
-import { useOutletContext, useNavigate, Link } from "react-router-dom";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useOutletContext, useNavigate, useSearchParams, Link } from "react-router-dom";
 import axios from "../api/axios";
 import { toast } from 'react-toastify';
 import { homeForRole, saveSession } from "../utils/auth";
@@ -25,6 +25,15 @@ function roleLabel(role: string) {
 export default function Login() {
   const [handleAuth] = useOutletContext() as [(e: FormEvent) => void];
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Sent back here because the company was frozen while they were logged in
+  useEffect(() => {
+    if (searchParams.get("frozen")) {
+      toast.error("Your company's account is frozen. Please contact ThinkGreen Afrika.", { autoClose: 8000 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [activeRole, setActiveRole] = useState<Role>("job_seeker");
   const [email, setEmail] = useState("");
